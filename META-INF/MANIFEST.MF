@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Main-Class: com.pro100kryto.server.Starter
+Class-Path: core/lib/commons-cli-1.4.jar core/lib/istack-commons-runtime
+ -4.0.0.jar core/lib/javassist-3.27.0-GA.jar
