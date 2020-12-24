@@ -3,8 +3,6 @@ package com.pro100kryto.server.module;
 import com.pro100kryto.server.service.IService;
 import com.pro100kryto.server.service.IServiceControl;
 
-import java.rmi.RemoteException;
-
 public final class ModuleConnectionSafe<T extends IModuleConnection> implements IModuleConnectionSafe<T> {
     protected final IServiceControl service;
     protected final String moduleName;
@@ -36,7 +34,7 @@ public final class ModuleConnectionSafe<T extends IModuleConnection> implements 
     public boolean isAliveConnection() {
         try {
             return moduleConnection.ping();
-        } catch (RemoteException ignored) {
+        } catch (Throwable ignored) {
         }
         return false;
     }
@@ -48,7 +46,7 @@ public final class ModuleConnectionSafe<T extends IModuleConnection> implements 
         try {
             moduleConnection = (T) module.getModuleConnection();
             return moduleConnection.ping();
-        } catch (NullPointerException | ClassCastException | RemoteException ignored){
+        } catch (NullPointerException | ClassCastException ignored){
         }
         return false;
     }
