@@ -54,6 +54,21 @@ public abstract class AModuleConnection implements IModuleConnection {
         }
     }
 
+    @Override
+    public final String getModuleType() {
+        return moduleType;
+    }
+
+    @Override
+    public final String getModuleName() {
+        return moduleName;
+    }
+
+    @Override
+    public boolean ping() {
+        return true;
+    }
+
     private static final class EventListenerContainer {
         public final IModuleConnectionEventListener listener;
         public final int bypassType;
