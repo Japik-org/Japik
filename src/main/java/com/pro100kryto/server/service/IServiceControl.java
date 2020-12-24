@@ -11,4 +11,6 @@ public interface IServiceControl extends IService, IStartStopAlive {
     IModule createModule(String moduleType, String moduleName) throws Throwable;
     void removeModule(String moduleName);
     void removeAllModulesStopped() throws Throwable;
+
+    <T extends IServiceConnection> T getConnection() throws ClassCastException;
 }

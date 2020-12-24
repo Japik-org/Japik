@@ -197,6 +197,7 @@ public final class Service implements IServiceControl, IService, IServiceRemote 
         return status;
     }
 
+    @Override
     public <T extends IServiceConnection> T getConnection() throws ClassCastException{
         return (T) serviceType.getServiceConnection();
     }
