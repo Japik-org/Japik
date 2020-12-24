@@ -32,6 +32,11 @@ public abstract class Module implements IModule {
         settings = new HashMap<>(0);
     }
 
+    @Override
+    public void setSettings(Map<String, String> settings) {
+        this.settings = settings;
+    }
+
     @Override @Nullable
     public final IModuleConnection getModuleConnection() {
         return moduleConnection;
