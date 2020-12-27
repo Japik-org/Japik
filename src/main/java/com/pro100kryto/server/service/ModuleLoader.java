@@ -12,6 +12,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -37,23 +38,31 @@ public final class ModuleLoader {
             throw new KeyAlreadyExistsException("Module with name '"+moduleName+"' already exists");
 
         final String className = Constants.BASE_PACKET_NAME + ".modules."+moduleType+"Module";
+        final ArrayList<URL> urls = new ArrayList<>();
 
-        File fileModule = new File(workingPath + File.separator
+        File dirModules = new File(workingPath + File.separator
                 + "core" + File.separator
-                + "modules" + File.separator
+                + "modules");
+        if (!dirModules.exists()){
+            throw new ClassNotFoundException("Directory \"" + dirModules.getAbsolutePath() + "\" not found");
+        }
+
+        File fileModule = new File(dirModules.toURI().toURL() + File.separator
                 + moduleType.toLowerCase() + "-module.jar");
         if (!fileModule.exists()) {
             throw new ClassNotFoundException("File \"" + fileModule.getAbsolutePath() + "\" not found");
         }
+        urls.add(fileModule.toURI().toURL());
 
-        File fileModuleConn = new File(workingPath + File.separator
-                + "modules" + File.separator
-                + moduleType.toLowerCase() + "-module-connection.jar");
+        // temp solution!!
+        File[] moduleFiles = dirModules.listFiles();
+        for (File f : moduleFiles){
+            if (!f.isFile()) continue;
+            if (!f.getName().endsWith("-module-connection.jar")) continue;
+            urls.add(f.toURI().toURL());
+        }
 
-        ClassLoader classLoader = new URLClassLoader(new URL[]{
-                fileModule.toURI().toURL(),
-                fileModuleConn.toURI().toURL()
-        });
+        ClassLoader classLoader = new URLClassLoader(urls.toArray(new URL[0]));
         Class<?> cls = classLoader.loadClass(className);
         if (!IModule.class.isAssignableFrom(cls))
             throw new IllegalClassFormatException("Is not assignable to IModule");
