@@ -47,7 +47,7 @@ public final class ModuleLoader {
             throw new ClassNotFoundException("Directory \"" + dirModules.getAbsolutePath() + "\" not found");
         }
 
-        File fileModule = new File(dirModules.toURI().toURL() + File.separator
+        File fileModule = new File(dirModules.getAbsolutePath() + File.separator
                 + moduleType.toLowerCase() + "-module.jar");
         if (!fileModule.exists()) {
             throw new ClassNotFoundException("File \"" + fileModule.getAbsolutePath() + "\" not found");
