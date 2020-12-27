@@ -22,6 +22,7 @@ public abstract class AServiceType <T extends IServiceConnection> {
         afterStop();
     }
 
+    @Nullable
     public T getServiceConnection(){
         return serviceConnection;
     }
