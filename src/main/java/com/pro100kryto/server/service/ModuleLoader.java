@@ -17,11 +17,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 public final class ModuleLoader {
-    private final String workingPath;
+    private final String workingDir;
     private final Map<String, IModule> nameModuleMap;
+    private URLClassLoader parentClassLoader;
 
-    public ModuleLoader(String workingPath) {
-        this.workingPath = workingPath;
+    public ModuleLoader(String workingDir) {
+        this.workingDir = workingDir;
         nameModuleMap = new HashMap<>();
     }
 
@@ -38,9 +39,8 @@ public final class ModuleLoader {
             throw new KeyAlreadyExistsException("Module with name '"+moduleName+"' already exists");
 
         final String className = Constants.BASE_PACKET_NAME + ".modules."+moduleType+"Module";
-        final ArrayList<URL> urls = new ArrayList<>();
 
-        File dirModules = new File(workingPath + File.separator
+        File dirModules = new File(workingDir + File.separator
                 + "core" + File.separator
                 + "modules");
         if (!dirModules.exists()){
@@ -52,17 +52,45 @@ public final class ModuleLoader {
         if (!fileModule.exists()) {
             throw new ClassNotFoundException("File \"" + fileModule.getAbsolutePath() + "\" not found");
         }
-        urls.add(fileModule.toURI().toURL());
 
-        // temp solution!!
-        File[] moduleFiles = dirModules.listFiles();
-        for (File f : moduleFiles){
-            if (!f.isFile()) continue;
-            if (!f.getName().endsWith("-module-connection.jar")) continue;
-            urls.add(f.toURI().toURL());
+        if (parentClassLoader == null || nameModuleMap.isEmpty()) {
+            ArrayList<URL> urls = new ArrayList<>();
+            {
+                File[] filesModule = dirModules.listFiles();
+                for (File f : filesModule) {
+                    if (!f.isFile()) continue;
+                    if (!f.getName().endsWith("-module-connection.jar")) continue;
+                    urls.add(f.toURI().toURL());
+                }
+            }
+            {
+                File dirLib = new File(workingDir + File.separator + "core" + File.separator + "lib");
+                if (dirLib.exists()){
+                    File[] filesLib = dirLib.listFiles();
+                    for (File f : filesLib) {
+                        if (!f.isFile()) continue;
+                        if (!f.getName().endsWith(".jar")) continue;
+                        urls.add(f.toURI().toURL());
+                    }
+                }
+            }
+            {
+                File dirUtils = new File(workingDir + File.separator + "core" + File.separator + "utils");
+                if (dirUtils.exists()){
+                    File[] filesUtils = dirUtils.listFiles();
+                    for (File f : filesUtils) {
+                        if (!f.isFile()) continue;
+                        if (!f.getName().endsWith(".jar")) continue;
+                        urls.add(f.toURI().toURL());
+                    }
+                }
+            }
+            parentClassLoader = new URLClassLoader(urls.toArray(new URL[0]));
         }
 
-        ClassLoader classLoader = new URLClassLoader(urls.toArray(new URL[0]));
+        ClassLoader classLoader = new URLClassLoader(new URL[]{
+                fileModule.toURI().toURL()
+        }, parentClassLoader);
         Class<?> cls = classLoader.loadClass(className);
         if (!IModule.class.isAssignableFrom(cls))
             throw new IllegalClassFormatException("Is not assignable to IModule");
