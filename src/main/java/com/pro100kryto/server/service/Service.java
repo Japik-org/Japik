@@ -74,7 +74,7 @@ public final class Service implements IServiceControl, IService, IServiceRemote 
 
         final IModule module = moduleLoader.create(this, moduleType, moduleName);
         nameModuleMap.put(moduleName, module);
-        logger.writeInfo("New module created name='"+moduleName+"' name='"+moduleName+"'");
+        logger.writeInfo("New module created name='"+moduleName+"' type='"+moduleType+"'");
 
         return module;
     }
