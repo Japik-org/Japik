@@ -140,7 +140,7 @@ public final class Service implements IServiceControl, IService, IServiceRemote 
             serviceType = constructor.newInstance(this);
 
         } catch (ClassCastException classCastException){
-            throw new Throwable("Wrong service type, is not implementing AServiceConnection", classCastException);
+            throw new Throwable("Wrong service type", classCastException);
 
         } catch (NoSuchMethodException noSuchMethodException){
             throw new Throwable("Failed initialize service type: constructor not found", noSuchMethodException);
