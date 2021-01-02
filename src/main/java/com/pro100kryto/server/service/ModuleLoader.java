@@ -19,10 +19,12 @@ import java.util.Map;
 public final class ModuleLoader {
     private final String workingDir;
     private final Map<String, IModule> nameModuleMap;
-    private URLClassLoader parentClassLoader;
+    private final ClassLoader servicesClassLoader;
+    private URLClassLoader modulesClassLoader;
 
-    public ModuleLoader(String workingDir) {
+    public ModuleLoader(String workingDir, ClassLoader servicesClassLoader) {
         this.workingDir = workingDir;
+        this.servicesClassLoader = servicesClassLoader;
         nameModuleMap = new HashMap<>();
     }
 
@@ -53,7 +55,7 @@ public final class ModuleLoader {
             throw new ClassNotFoundException("File \"" + fileModule.getAbsolutePath() + "\" not found");
         }
 
-        if (parentClassLoader == null || nameModuleMap.isEmpty()) {
+        if (modulesClassLoader == null || nameModuleMap.isEmpty()) {
             ArrayList<URL> urls = new ArrayList<>();
             {
                 File[] filesModule = dirModules.listFiles();
@@ -85,12 +87,12 @@ public final class ModuleLoader {
                     }
                 }
             }
-            parentClassLoader = new URLClassLoader(urls.toArray(new URL[0]));
+            modulesClassLoader = new URLClassLoader(urls.toArray(new URL[0]), servicesClassLoader);
         }
 
         ClassLoader classLoader = new URLClassLoader(new URL[]{
                 fileModule.toURI().toURL()
-        }, parentClassLoader);
+        }, modulesClassLoader);
         Class<?> cls = classLoader.loadClass(className);
         if (!IModule.class.isAssignableFrom(cls))
             throw new IllegalClassFormatException("Is not assignable to IModule");

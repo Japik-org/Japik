@@ -30,15 +30,18 @@ public final class Service implements IServiceControl, IService, IServiceRemote 
     private final ModuleLoader moduleLoader;
     private StartStopStatus status = StartStopStatus.STOPPED;
     private AServiceType<? extends IServiceConnection> serviceType;
+    private final ClassLoader parentClassLoader;
 
-    public Service(ServiceManager serviceManager, String name, String type) {
+    public Service(ServiceManager serviceManager, String name, String type, ClassLoader classLoader,
+                   int sleepBetweenTicks, int threadCount) {
         this.serviceManager = serviceManager;
         this.logger = Server.getInstance().getLoggerManager().createLogger(getRegistryName(name));
         this.name = (name.equals("") ? UUID.randomUUID().toString() : name);
         this.type = type;
+        this.parentClassLoader = classLoader;
         // multithreading will be implemented in the future
-        runnable = new ServiceRunnable(this,0,1, logger);
-        moduleLoader = new ModuleLoader(Server.getInstance().getWorkingPath());
+        runnable = new ServiceRunnable(this, sleepBetweenTicks, threadCount, logger);
+        moduleLoader = new ModuleLoader(Server.getInstance().getWorkingPath(), parentClassLoader);
     }
 
     @Override
@@ -125,7 +128,8 @@ public final class Service implements IServiceControl, IService, IServiceRemote 
         }
 
         final ClassLoader classLoader = new URLClassLoader(
-                new URL[]{file.toURI().toURL()}
+                new URL[]{file.toURI().toURL()},
+                parentClassLoader
         );
         try {
             final Class<AServiceType<? extends IServiceConnection>> serviceConnectionClass =
