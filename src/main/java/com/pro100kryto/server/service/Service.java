@@ -1,8 +1,6 @@
 package com.pro100kryto.server.service;
 
-import com.pro100kryto.server.Constants;
-import com.pro100kryto.server.Server;
-import com.pro100kryto.server.StartStopStatus;
+import com.pro100kryto.server.*;
 import com.pro100kryto.server.logger.ILogger;
 import com.pro100kryto.server.module.IModule;
 import com.pro100kryto.server.service.manager.ServiceManager;
@@ -10,38 +8,35 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.management.openmbean.KeyAlreadyExistsException;
 import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.lang.instrument.IllegalClassFormatException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
-import java.net.URLClassLoader;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.*;
 
-public final class Service implements IServiceControl, IService, IServiceRemote {
-    private final ILogger logger;
+public final class Service implements IServiceControl, IService, IServiceRemote, IServiceTypeCallback {
+    private final URLClassLoader2 currentClassLoader;
     private final ServiceManager serviceManager;
     private final String name;
     private final String type;
-    private final Map<String, IModule> nameModuleMap = new ConcurrentHashMap<>();
+    private final ILogger logger;
     private final ServiceRunnable runnable;
-    private final ModuleLoader moduleLoader;
+    private final Map<String, IModule> nameModuleMap = new HashMap<>();
+    private final Map<String, URLClassLoader2> nameServiceLoaderMap = new HashMap<>();
     private StartStopStatus status = StartStopStatus.STOPPED;
     private AServiceType<? extends IServiceConnection> serviceType;
-    private final ClassLoader parentClassLoader;
+    private final Map<String, String> settings = new HashMap<>(0);
 
-    public Service(ServiceManager serviceManager, String name, String type, ClassLoader classLoader,
+    public Service(URLClassLoader2 currentClassLoader, ServiceManager serviceManager, String name, String type,
                    int sleepBetweenTicks, int threadCount) {
+        this.currentClassLoader = currentClassLoader;
         this.serviceManager = serviceManager;
-        this.logger = Server.getInstance().getLoggerManager().createLogger(getRegistryName(name));
         this.name = (name.equals("") ? UUID.randomUUID().toString() : name);
         this.type = type;
-        this.parentClassLoader = classLoader;
-        // multithreading will be implemented in the future
+        this.logger = Server.getInstance().getLoggerManager().createLogger(getRegistryName(name));
+
         runnable = new ServiceRunnable(this, sleepBetweenTicks, threadCount, logger);
-        moduleLoader = new ModuleLoader(Server.getInstance().getWorkingPath(), parentClassLoader);
     }
 
     @Override
@@ -73,10 +68,38 @@ public final class Service implements IServiceControl, IService, IServiceRemote 
     public synchronized IModule createModule(String moduleType, String moduleName)
             throws Throwable {
 
-        if (nameModuleMap.containsKey(moduleName)) throw new KeyAlreadyExistsException();
+        if (nameModuleMap.containsKey(moduleName))
+            throw new KeyAlreadyExistsException("Module with name '"+moduleName+"' already exists");
 
-        final IModule module = moduleLoader.create(this, moduleType, moduleName);
+        final String className = Constants.BASE_PACKET_NAME + ".modules."+moduleType+"Module";
+
+        final File fileModule = new File( Server.getInstance().getWorkingPath() + File.separator
+                + "core" + File.separator
+                + "modules"+ File.separator
+                + moduleType.toLowerCase() + "-module.jar");
+        if (!fileModule.exists()) {
+            throw new ClassNotFoundException(fileModule.getAbsolutePath() + " not found");
+        }
+
+        // class loader
+        final ArrayList<URL> urls = new ArrayList<>();
+        UtilsInternal.readJarClassPathAndCheck(logger, fileModule, urls);
+
+        final URLClassLoader2 classLoader = new URLClassLoader2(
+                urls.toArray(new URL[0]),
+                currentClassLoader);
+
+        // create
+        final Class<?> cls = classLoader.loadClass(className);
+        if (!IModule.class.isAssignableFrom(cls))
+            throw new IllegalClassFormatException("Is not assignable to IModule");
+
+        final Constructor<?> ctor = cls.getConstructor(IServiceControl.class, String.class);
+        final IModule module = (IModule) ctor.newInstance(this, moduleName);
+
         nameModuleMap.put(moduleName, module);
+        nameServiceLoaderMap.put(moduleName, classLoader);
+
         logger.writeInfo("New module created name='"+moduleName+"' type='"+moduleType+"'");
 
         return module;
@@ -92,8 +115,15 @@ public final class Service implements IServiceControl, IService, IServiceRemote 
         final IModule module = nameModuleMap.get(moduleName);
         if (module.getStatus()!=StartStopStatus.STOPPED)
             throw new IllegalStateException("Module is started");
-        moduleLoader.removeModule(moduleName);
+
         nameModuleMap.remove(moduleName);
+
+        try {
+            nameServiceLoaderMap.remove(moduleName).close();
+        } catch (IOException ioException){
+            logger.writeException(ioException, "Failed close URLClassLoader");
+        }
+
         logger.writeInfo("Module name='"+moduleName+"' removed");
     }
 
@@ -119,23 +149,11 @@ public final class Service implements IServiceControl, IService, IServiceRemote 
 
         // -------- service connection
 
-        final File file = new File(Server.getInstance().getWorkingPath() + File.separator
-                + "core" + File.separator
-                + "services" + File.separator
-                + type.toLowerCase()+"-service.jar");
-        if (!file.exists()) {
-            throw new FileNotFoundException(file.getAbsolutePath()+" not found");
-        }
-
-        final ClassLoader classLoader = new URLClassLoader(
-                new URL[]{file.toURI().toURL()},
-                parentClassLoader
-        );
         try {
             final Class<AServiceType<? extends IServiceConnection>> serviceConnectionClass =
                     (Class<AServiceType<? extends IServiceConnection>>) Class.forName(
                             Constants.BASE_PACKET_NAME + ".services." + type + "Service",
-                            true, classLoader);
+                            true, currentClassLoader);
             final Constructor<AServiceType<? extends IServiceConnection>> constructor = serviceConnectionClass.getConstructor(Service.class);
             serviceType = constructor.newInstance(this);
 
@@ -202,9 +220,40 @@ public final class Service implements IServiceControl, IService, IServiceRemote 
     }
 
     @Override
-    public <T extends IServiceConnection> T getConnection() throws ClassCastException{
+    public <T extends IServiceConnection> T getServiceConnection() throws ClassCastException{
         return (T) serviceType.getServiceConnection();
     }
+
+    // ----------- settings
+
+    @Override
+    public void setSetting(String key, String val){
+        settings.put(key, val);
+    }
+
+    @Override
+    public void addBaseLib(URL url){
+        currentClassLoader.addURL(url);
+    }
+
+    // ------- callback
+
+    @Override
+    public ILogger getLogger() {
+        return logger;
+    }
+
+    @Override
+    public String getSetting(String key) {
+        return settings.get(key);
+    }
+
+    @Override
+    public String getSettingOrDefault(String key, String defaultVal) {
+        return settings.getOrDefault(key, defaultVal);
+    }
+
+    // ----- utils
 
     public static String getRegistryName(String serviceName){
         return serviceName+"/";

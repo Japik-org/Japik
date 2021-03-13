@@ -10,9 +10,11 @@ import com.pro100kryto.server.service.manager.ServiceManager;
 import com.pro100kryto.server.service.manager.ServiceManagerRemoteSafe;
 import org.jetbrains.annotations.Nullable;
 
+import java.net.URL;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -26,12 +28,17 @@ public final class Server implements IServerControl, IServer {
 
     private final ExtensionLoader extensionCreator;
     private final Map<String, IExtension> extensionMap = new ConcurrentHashMap<>();
+    private final Map<String, String> settings = new HashMap<>();
+
+    private final URLClassLoader2 serverClassLoader;
 
     private Server() {
+        serverClassLoader = new URLClassLoader2(new URL[0], ClassLoader.getSystemClassLoader());
+
         loggerManager = new LoggerManager();
         mainLogger = loggerManager.getMainLogger();
-        serviceManager = new ServiceManager(this);
-        extensionCreator = new ExtensionLoader(this, getWorkingPath());
+        serviceManager = new ServiceManager(this, serverClassLoader);
+        extensionCreator = new ExtensionLoader(this, serverClassLoader, getWorkingPath());
         projectProperties = new ProjectProperties();
     }
 
@@ -141,6 +148,28 @@ public final class Server implements IServerControl, IServer {
     @Override
     public ServiceManagerRemoteSafe createServiceManagerRemoteSafe(String host, int port){
         return new ServiceManagerRemoteSafe(host, port);
+    }
+
+    // ----- settigns
+
+    @Override
+    public void setSetting(String key, String val){
+        settings.put(key, val);
+    }
+
+    @Override
+    public String getSetting(String key){
+        return settings.get(key);
+    }
+
+    @Override
+    public String getSettingOrDefault(String key, String defaultVal){
+        return settings.getOrDefault(key, defaultVal);
+    }
+
+    @Override
+    public void addBaseLib(URL url) {
+        serverClassLoader.addURL(url);
     }
 
     // ------- utils

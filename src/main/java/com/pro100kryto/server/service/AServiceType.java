@@ -5,9 +5,11 @@ import org.jetbrains.annotations.Nullable;
 public abstract class AServiceType <T extends IServiceConnection> {
     private T serviceConnection;
     protected final IServiceControl service;
+    protected final IServiceTypeCallback callback;
 
     public AServiceType(Service service){
         this.service = service;
+        callback = service;
     }
 
     public final void start() throws Throwable {
@@ -34,5 +36,5 @@ public abstract class AServiceType <T extends IServiceConnection> {
     protected void afterStop() throws Throwable{}
 
     @Nullable
-    protected abstract T createServiceConnection();
+    protected abstract T createServiceConnection() throws Throwable;
 }

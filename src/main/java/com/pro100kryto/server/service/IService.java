@@ -12,4 +12,6 @@ public interface IService{
 
     StartStopStatus getStatus();
     long getTicksPerSec();
+
+    <T extends IServiceConnection> T getServiceConnection() throws ClassCastException;
 }

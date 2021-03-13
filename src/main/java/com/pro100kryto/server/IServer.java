@@ -19,6 +19,10 @@ public interface IServer {
 
     LoggerManager getLoggerManager();
 
+    String getSetting(String key);
+
+    String getSettingOrDefault(String key, String defaultVal);
+
     String getWorkingPath();
 
     IServiceManager getServiceManager();

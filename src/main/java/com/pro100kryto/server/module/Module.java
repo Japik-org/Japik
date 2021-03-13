@@ -118,8 +118,21 @@ public abstract class Module implements IModule {
         if (!iModuleConnectionSafe.isAliveConnection())
             iModuleConnectionSafe.refreshConnection();
         if (!iModuleConnectionSafe.isAliveConnection())
-            logger.writeWarn("connection with '"+moduleName+"' is not alive");
+            logger.writeWarn("connection with module '"+moduleName+"' is not alive");
         return iModuleConnectionSafe;
+    }
+
+    protected final <T extends IServiceConnection>IServiceConnectionSafe<T> initServiceConnection(
+            String serviceName){
+
+        final IServiceConnectionSafe<T> iServiceConnectionSafe =
+                new ServiceConnectionSafe<>(service.getServiceManager(), serviceName);
+
+        if (!iServiceConnectionSafe.isAliveConnection())
+            iServiceConnectionSafe.refreshConnection();
+        if (iServiceConnectionSafe.isAliveConnection())
+            logger.writeWarn("connection with service '"+serviceName+"' is not alive");
+        return iServiceConnectionSafe;
     }
 
     public static String getRegistryName(String serviceName, String moduleName){

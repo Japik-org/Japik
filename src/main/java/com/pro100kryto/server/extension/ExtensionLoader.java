@@ -2,6 +2,7 @@ package com.pro100kryto.server.extension;
 
 import com.pro100kryto.server.Constants;
 import com.pro100kryto.server.IServerControl;
+import com.pro100kryto.server.URLClassLoader2;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -15,10 +16,12 @@ import java.net.URLClassLoader;
 public final class ExtensionLoader {
     private final IServerControl serverControl;
     private final String workingPath;
+    private final URLClassLoader2 parentClassLoader;
 
-    public ExtensionLoader(IServerControl serverControl, String workingPath) {
+    public ExtensionLoader(IServerControl serverControl, URLClassLoader2 parentClassLoader, String workingPath) {
         this.serverControl = serverControl;
         this.workingPath = workingPath;
+        this.parentClassLoader = parentClassLoader;
     }
 
     public IExtension create(String type)
@@ -28,7 +31,7 @@ public final class ExtensionLoader {
 
         final String className = Constants.BASE_PACKET_NAME + ".extensions."+type+"Extension";
 
-        File fileExt = new File(workingPath + File.separator
+        final File fileExt = new File(workingPath + File.separator
                 + "core" + File.separator
                 + "extensions" + File.separator
                 + type.toLowerCase() + "-extension.jar");
@@ -37,15 +40,15 @@ public final class ExtensionLoader {
             throw new FileNotFoundException("File \"" + fileExt.getAbsolutePath() + "\" not found");
         }
 
-        ClassLoader classLoader = new URLClassLoader(new URL[]{
-                fileExt.toURI().toURL()
-        });
+        final ClassLoader classLoader = new URLClassLoader(new URL[]{
+                fileExt.toURI().toURL(),
+        }, parentClassLoader);
         Class<?> cls = classLoader.loadClass(className);
         if (!IExtension.class.isAssignableFrom(cls))
             throw new IllegalClassFormatException("Is not assignable to IExtension");
 
-        Constructor<?> ctor = cls.getConstructor(IServerControl.class);
-        IExtension extension = (IExtension) ctor.newInstance(serverControl);
+        final Constructor<?> ctor = cls.getConstructor(IServerControl.class);
+        final IExtension extension = (IExtension) ctor.newInstance(serverControl);
         return extension;
     }
 }
