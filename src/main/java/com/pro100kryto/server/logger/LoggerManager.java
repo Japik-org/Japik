@@ -1,7 +1,7 @@
 package com.pro100kryto.server.logger;
 
-import com.sun.istack.NotNull;
-import com.sun.istack.Nullable;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.management.openmbean.KeyAlreadyExistsException;
 import java.time.LocalDateTime;

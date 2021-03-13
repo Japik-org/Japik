@@ -1,6 +1,6 @@
 package com.pro100kryto.server.service;
 
-import com.sun.istack.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 public abstract class AServiceType <T extends IServiceConnection> {
     private T serviceConnection;

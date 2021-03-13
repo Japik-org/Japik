@@ -2,7 +2,9 @@ package com.pro100kryto.server.service;
 
 import com.pro100kryto.server.IStartStopAlive;
 import com.pro100kryto.server.module.IModule;
-import com.sun.istack.Nullable;
+import org.jetbrains.annotations.Nullable;
+
+import java.net.URL;
 
 public interface IServiceControl extends IService, IStartStopAlive {
     Iterable<IModule> getModules();

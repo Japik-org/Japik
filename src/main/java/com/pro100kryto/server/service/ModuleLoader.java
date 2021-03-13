@@ -2,7 +2,7 @@ package com.pro100kryto.server.service;
 
 import com.pro100kryto.server.Constants;
 import com.pro100kryto.server.module.IModule;
-import com.sun.istack.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 import javax.management.openmbean.KeyAlreadyExistsException;
 import java.io.File;

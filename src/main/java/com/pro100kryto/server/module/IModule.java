@@ -2,7 +2,7 @@ package com.pro100kryto.server.module;
 
 import com.pro100kryto.server.IStartStopAlive;
 import com.pro100kryto.server.service.IService;
-import com.sun.istack.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 

@@ -17,10 +17,9 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.sun.istack</groupId>
-            <artifactId>istack-commons-runtime</artifactId>
-            <version>4.0.0</version>
-            <scope>provided</scope>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <version>13.0</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/commons-cli/commons-cli -->
         <dependency>

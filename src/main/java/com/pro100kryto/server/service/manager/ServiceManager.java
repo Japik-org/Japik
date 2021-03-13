@@ -6,7 +6,7 @@ import com.pro100kryto.server.StartStopStatus;
 import com.pro100kryto.server.logger.ILogger;
 import com.pro100kryto.server.service.IServiceControl;
 import com.pro100kryto.server.service.Service;
-import com.sun.istack.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.net.MalformedURLException;

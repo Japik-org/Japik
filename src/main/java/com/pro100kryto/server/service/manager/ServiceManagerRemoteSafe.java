@@ -1,7 +1,7 @@
 package com.pro100kryto.server.service.manager;
 
 import com.pro100kryto.server.service.ServiceRemoteSafe;
-import com.sun.istack.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
