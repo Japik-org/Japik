@@ -21,7 +21,10 @@ public class UtilsInternal {
 
         final JarFile jarFile = new JarFile(file);
         final Manifest manifest = jarFile.getManifest();
-        if (manifest == null) return; // manifest does not exists
+        if (manifest == null) { // manifest does not exists
+            logger.writeWarn("no manifest found for "+jarFile.getName());
+            return;
+        }
 
         final Attributes attributes = manifest.getMainAttributes();
         final String classPathService = attributes.getValue("Class-Path");
