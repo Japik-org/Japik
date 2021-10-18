@@ -27,6 +27,7 @@ public final class LoggerManager {
             registerLogger(mainLogger);
         } catch (LoggerAlreadyExistsException ignored){
         }
+        Loggers.setDefaultLogger(mainLogger);
     }
 
     // listener
