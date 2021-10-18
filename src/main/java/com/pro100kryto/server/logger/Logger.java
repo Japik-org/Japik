@@ -15,14 +15,14 @@ public class Logger implements ILogger {
     }
 
     @Override
-    public void writeException(Throwable ex) {
+    public void exception(Throwable ex) {
         ex.printStackTrace();
         loggerManager.write(name, MsgType.EXCEPTION, ex.getClass().getSimpleName()+" : "+ex.getMessage()
                 +(ex.getCause()!=null ? " CAUSE: "+ex.getCause().getMessage() : ""));
     }
 
     @Override
-    public void writeException(Throwable ex, String description) {
+    public void exception(Throwable ex, String description) {
         ex.printStackTrace();
         loggerManager.write(name, MsgType.EXCEPTION, ex.getClass().getSimpleName()+" : "+ex.getMessage()
                 +(ex.getCause()!=null ? " CAUSE: "+ex.getCause().getMessage() : "")
@@ -30,22 +30,22 @@ public class Logger implements ILogger {
     }
 
     @Override
-    public void writeError(String msg) {
+    public void error(String msg) {
         loggerManager.write(name, MsgType.ERROR, msg);
     }
 
     @Override
-    public void writeWarn(String msg) {
+    public void warn(String msg) {
         loggerManager.write(name, MsgType.WARN, msg);
     }
 
     @Override
-    public void writeInfo(String msg) {
+    public void info(String msg) {
         loggerManager.write(name, MsgType.INFO, msg);
     }
 
     @Override
-    public void write(String msg) {
+    public void raw(String msg) {
         loggerManager.write(name, MsgType.RAW, msg);
     }
 }

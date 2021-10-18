@@ -4,12 +4,23 @@ import com.pro100kryto.server.extension.ExtensionLoader;
 import com.pro100kryto.server.extension.IExtension;
 import com.pro100kryto.server.logger.ILogger;
 import org.apache.commons.cli.*;
+import org.jetbrains.annotations.Nullable;
+
+import java.nio.file.Paths;
 
 public final class Starter {
+    private static Server server;
 
-    public static void main(String[] args) {
-        final IServerControl serverControl = Server.createNewInstance();
-        final ILogger logger = serverControl.getLoggerManager().getMainLogger();
+    @Nullable
+    public static Server getServer() {
+        return server;
+    }
+
+    public static void main(String[] args) throws Throwable {
+        Starter.server = new Server(
+                Paths.get(System.getProperty("user.dir"))
+        );
+        final ILogger logger = server.getLoggerManager().getMainLogger();
 
         final Options options = new Options();
 
@@ -23,56 +34,62 @@ public final class Starter {
         try {
             final CommandLine line = parser.parse(options, args);
 
+            try {
+                server.getLiveCycle().init();
+            } catch (Throwable throwable){
+                logger.exception(throwable, "Failed init server");
+                throw throwable;
+            }
+
             if (line.hasOption("start")){
                 try {
-                    serverControl.start();
+                    server.getLiveCycle().start();
                 } catch (Throwable throwable){
-                    logger.writeException(throwable, "Failed start server");
+                    logger.exception(throwable, "Failed start server");
                 }
             }
 
             if (line.hasOption("ext-add")){
-                final String[] values = line.getOptionValues("ext-add");
-                final ExtensionLoader extensionCreator = serverControl.getExtensionCreator();
+                final String[] extTypes = line.getOptionValues("ext-add");
+                final ExtensionLoader extensionLoader = server.getExtensionLoader();
 
-                for(String val: values){
+                for(final String extType: extTypes){
                     try {
-                        IExtension extension = extensionCreator.create(val);
-                        serverControl.addExtension(extension);
+                        final IExtension<?> extension = extensionLoader.createExtension(extType);
                     } catch (Throwable e) {
-                        logger.writeException(e, "Failed add extension");
+                        logger.exception(e, "Failed add extension");
                     }
                 }
             }
 
             if (line.hasOption("ext-add-start")){
-                final String[] values = line.getOptionValues("ext-add-start");
-                final ExtensionLoader extensionCreator = serverControl.getExtensionCreator();
+                final String[] extTypes = line.getOptionValues("ext-add-start");
+                final ExtensionLoader extensionCreator = server.getExtensionLoader();
 
-                for(String val: values){
+                for(final String extType: extTypes){
+                    final IExtension<?> extension;
                     try {
-                        IExtension extension = extensionCreator.create(val);
-                        serverControl.addExtension(extension);
+                        extension = extensionCreator.createExtension(extType);
                     } catch (Throwable e) {
-                        logger.writeException(e, "Failed add extension");
+                        logger.exception(e, "Failed add extension");
                         continue;
                     }
                     try{
-                        serverControl.getExtension(val).start();
+                        extension.getLiveCycle().start();
                     } catch (Throwable e){
-                        logger.writeException(e, "Failed start extension");
+                        logger.exception(e, "Failed start extension");
                     }
                 }
             }
 
-        } catch (ParseException e) {
-            logger.writeException(e);
+        } catch (ParseException parseException) {
+            logger.exception(parseException);
             formatter.printHelp("starter", options);
-            System.exit(1);
+            throw parseException;
 
         } catch (Throwable throwable) {
-            logger.writeException(throwable, "Unexpected error occurred");
-            System.exit(1);
+            logger.exception(throwable, "Unexpected error occurred");
+            throw throwable;
         }
     }
 }

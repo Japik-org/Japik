@@ -1,85 +1,137 @@
 package com.pro100kryto.server.logger;
 
+import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.management.openmbean.KeyAlreadyExistsException;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.locks.ReentrantLock;
 
 public final class LoggerManager {
+    private final ReentrantLock lock = new ReentrantLock();
+    private final Map<String, ILoggerListener> loggerListenerMap = new HashMap<>();
+    private final Map<String, ILogger> loggerMap = Collections.synchronizedMap(new HashMap<>());
+    private final List<ILoggerChangesListener> loggerLChangesListeners = new ArrayList<>();
+    @Getter
+    private final ILogger mainLogger;
     @NotNull
     private ILoggerListener mainLoggerListener;
-    private final Map<String, ILoggerListener> loggerListenerMap;
-    private final Map<String, ILogger> loggerMap;
-    private final List<ILoggerChangesListener> loggerLChangesListeners;
-    private final ILogger mainLogger;
-
 
     public LoggerManager() {
         mainLoggerListener = new LoggerListenerConsole();
-        loggerListenerMap = new HashMap<>();
-        loggerMap = new HashMap<>();
-        loggerLChangesListeners = new ArrayList<>();
-
-        mainLogger = new Logger(this, "main");
         setLoggerListener("main", mainLoggerListener);
 
-        registerLogger(mainLogger);
+        mainLogger = new Logger(this, "main");
+        try {
+            registerLogger(mainLogger);
+        } catch (LoggerAlreadyExistsException ignored){
+        }
     }
+
+    // listener
 
     public void setMainLoggerListener(@NotNull ILoggerListener loggerListener){
         Objects.requireNonNull(loggerListener);
-        mainLogger.writeInfo("Setting new mainLoggerListener");
-        mainLoggerListener = loggerListener;
-        setLoggerListener("main", mainLoggerListener);
+
+        lock.lock();
         try {
-            mainLoggerListener.write("main", LocalDateTime.now(), MsgType.INFO, "test message");
-            mainLogger.writeInfo("New mainLoggerListener connected");
-        } catch (Throwable throwable){
-            resetMainLoggerListener();
-            mainLogger.writeException(throwable, "Failed set mainLoggerListener");
+
+            mainLogger.info("Setting new mainLoggerListener");
+            mainLoggerListener = loggerListener;
+            setLoggerListener("main", mainLoggerListener);
+            try {
+                mainLoggerListener.write("main", LocalDateTime.now(), MsgType.INFO, "test message");
+                mainLogger.info("New mainLoggerListener connected");
+            } catch (Throwable throwable) {
+                resetMainLoggerListener();
+                mainLogger.exception(throwable, "Failed set mainLoggerListener");
+            }
+        } finally {
+            lock.unlock();
         }
     }
 
     public void resetMainLoggerListener(){
-        setMainLoggerListener(new LoggerListenerConsole());
+        lock.lock();
+        try {
+            setMainLoggerListener(new LoggerListenerConsole());
+        } finally {
+            lock.unlock();
+        }
     }
 
-
     public void setLoggerListener(String loggerName, @Nullable ILoggerListener loggerListener){
-        write(loggerName, MsgType.INFO, "Setting new loggerListener for '"+loggerName+"'");
-
-        loggerListenerMap.put(loggerName, loggerListener);
+        lock.lock();
         try {
-            write(loggerName, MsgType.INFO, "This LoggerListener '"+loggerName+"' was connected");
-        } catch (NullPointerException ignored){
+
+            write(loggerName, MsgType.INFO, "Setting new loggerListener for '" + loggerName + "'");
+
+            loggerListenerMap.put(loggerName, loggerListener);
+            try {
+                write(loggerName, MsgType.INFO, "This LoggerListener '" + loggerName + "' was connected");
+            } catch (NullPointerException ignored) {
+            }
+
+        } finally {
+            lock.unlock();
         }
     }
 
     public void removeLoggerListener(String loggerName){
-        if (!loggerListenerMap.containsKey(loggerName)) return;
-        write(loggerName, MsgType.INFO, "Disconnecting loggerListener '"+loggerName+"'");
-        loggerListenerMap.remove(loggerName);
-    }
+        lock.lock();
+        try {
+            if (!loggerListenerMap.containsKey(loggerName)) return;
+            write(loggerName, MsgType.INFO, "Disconnecting loggerListener '" + loggerName + "'");
+            loggerListenerMap.remove(loggerName);
 
-    public void removeLoggerListenerAll(){
-        for (String loggerName : getLoggerListenerNames()){
-            removeLoggerListener(loggerName);
+        } finally {
+            lock.unlock();
         }
     }
 
-    public synchronized void addLoggerChangesListener(ILoggerChangesListener loggerChangesListener){
-        loggerLChangesListeners.add(loggerChangesListener);
-        loggerChangesListener.onLoggerRegistered("main");
+    public void removeLoggerListeners(){
+        lock.lock();
+        try {
+
+            for (String loggerName : getLoggerListenerNames()) {
+                removeLoggerListener(loggerName);
+            }
+
+        } finally {
+            lock.unlock();
+        }
     }
 
-    public synchronized void removeLoggerChangesListener(ILoggerChangesListener loggerChangesListener){
-        loggerLChangesListeners.remove(loggerChangesListener);
+    public void addLoggerChangesListener(ILoggerChangesListener loggerChangesListener){
+        lock.lock();
+        try {
+
+            loggerLChangesListeners.add(loggerChangesListener);
+            loggerChangesListener.onLoggerRegistered("main");
+
+        } finally {
+            lock.unlock();
+        }
     }
 
-    public ILogger getMainLogger() {
-        return mainLogger;
+    public void removeLoggerChangesListener(ILoggerChangesListener loggerChangesListener){
+        lock.lock();
+        try {
+            loggerLChangesListeners.remove(loggerChangesListener);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public Iterable<String> getLoggerListenerNames(){
+        return loggerListenerMap.keySet();
+    }
+
+    // logger
+
+    public boolean existsLogger(String loggerName) {
+        return loggerMap.containsKey(loggerName);
     }
 
     @Nullable
@@ -87,50 +139,78 @@ public final class LoggerManager {
         return loggerMap.get(loggerName);
     }
 
-    public ILogger createLogger(String loggerName) throws KeyAlreadyExistsException {
-        if (loggerMap.containsKey(loggerName))
-            throw new KeyAlreadyExistsException("Logger with name '"+loggerName+"' already exists");
-        ILogger logger = new Logger(this, loggerName);
-        registerLogger(logger);
-        return logger;
-    }
+    public ILogger createLogger(String loggerName) throws LoggerAlreadyExistsException {
+        lock.lock();
+        try {
 
-    public synchronized void registerLogger(@NotNull ILogger logger){
-        write(logger.getName(), MsgType.INFO, "Connecting new logger '"+logger.getName()+"'");
-        loggerMap.put(logger.getName(), logger);
+            {
+                final ILogger logger = loggerMap.get(loggerName);
+                if (logger != null) {
+                    throw new LoggerAlreadyExistsException(logger);
+                }
+            }
 
-        for (ILoggerChangesListener listener : loggerLChangesListeners) {
-            listener.onLoggerRegistered(logger.getName());
-        }
+            final ILogger logger = new Logger(this, loggerName);
+            registerLogger(logger);
+            return logger;
 
-        logger.writeInfo("Logger '"+logger.getName()+"' connected");
-    }
-
-    public synchronized void unregisterLogger(String loggerName){
-        write(loggerName, MsgType.INFO, "Disconnecting the logger '"+loggerName+"'");
-        loggerMap.remove(loggerName);
-
-        for (ILoggerChangesListener listener : loggerLChangesListeners) {
-            listener.onLoggerUnregistered(loggerName);
+        } finally {
+            lock.unlock();
         }
     }
 
-    public void unregisterLoggerAll(){
-        for (String loggerName : getLoggerNames()){
-            unregisterLogger(loggerName);
+    public void registerLogger(@NotNull ILogger logger) throws LoggerAlreadyExistsException {
+        lock.lock();
+        try {
+
+            if (loggerMap.containsKey(logger.getName())) {
+                throw new LoggerAlreadyExistsException(loggerMap.get(logger.getName()));
+            }
+
+            write(logger.getName(), MsgType.INFO, "Connecting new logger '" + logger.getName() + "'");
+            loggerMap.put(logger.getName(), logger);
+
+            for (ILoggerChangesListener listener : loggerLChangesListeners) {
+                listener.onLoggerRegistered(logger.getName());
+            }
+
+            logger.info("Logger '" + logger.getName() + "' connected");
+
+        } finally {
+            lock.unlock();
         }
     }
 
-    
-    public String[] getLoggerNames(){
-        return (String[]) loggerMap.keySet().toArray();
+    public void unregisterLogger(String loggerName){
+        lock.lock();
+        try {
+            write(loggerName, MsgType.INFO, "Disconnecting the logger '" + loggerName + "'");
+            loggerMap.remove(loggerName);
+
+            for (final ILoggerChangesListener listener : loggerLChangesListeners) {
+                listener.onLoggerUnregistered(loggerName);
+            }
+        } finally {
+            lock.unlock();
+        }
     }
 
-    public String[] getLoggerListenerNames(){
-        return (String[]) loggerListenerMap.keySet().toArray();
+    public void unregisterLoggers(){
+        lock.lock();
+        try {
+            for (final String loggerName : getLoggerNames()) {
+                unregisterLogger(loggerName);
+            }
+        } finally {
+            lock.unlock();
+        }
     }
 
+    public Iterable<String> getLoggerNames(){
+        return loggerMap.keySet();
+    }
 
+    @Deprecated
     public void write(String loggerName, MsgType msgType, String msg) {
         try {
             loggerListenerMap.get(loggerName).write(loggerName, LocalDateTime.now(), msgType, msg);

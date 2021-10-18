@@ -2,186 +2,237 @@ package com.pro100kryto.server;
 
 import com.pro100kryto.server.extension.ExtensionLoader;
 import com.pro100kryto.server.extension.IExtension;
+import com.pro100kryto.server.livecycle.ILiveCycle;
+import com.pro100kryto.server.livecycle.ILiveCycleImpl;
+import com.pro100kryto.server.livecycle.LiveCycleController;
 import com.pro100kryto.server.logger.ILogger;
 import com.pro100kryto.server.logger.LoggerManager;
+import com.pro100kryto.server.logger.LoggerSystemOut;
 import com.pro100kryto.server.properties.ProjectProperties;
-import com.pro100kryto.server.service.manager.IServiceManagerRemote;
-import com.pro100kryto.server.service.manager.ServiceManager;
-import com.pro100kryto.server.service.manager.ServiceManagerRemoteSafe;
+import com.pro100kryto.server.service.IService;
+import com.pro100kryto.server.service.ServiceLoader;
+import com.pro100kryto.server.settings.BooleanSettingListener;
+import com.pro100kryto.server.settings.SettingListenerContainer;
+import com.pro100kryto.server.settings.SettingListenerEventMask;
+import com.pro100kryto.server.settings.SettingsManager;
+import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.IOException;
 import java.net.URL;
-import java.rmi.NotBoundException;
-import java.rmi.RemoteException;
-import java.rmi.registry.LocateRegistry;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.net.URLClassLoader;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
-public final class Server implements IServerControl, IServer {
-    private static Server instance = null;
-    private StartStopStatus status = StartStopStatus.STOPPED;
-    private final LoggerManager loggerManager;
-    private final ILogger mainLogger;
-    private final ServiceManager serviceManager;
+public final class Server{
+    @Getter
+    private final Path workingPath;
+
+    private final ClassLoader parentClassLoader;
+    private final LiveCycleController liveCycleController;
+
+    @Getter
     private final ProjectProperties projectProperties;
+    @Getter
+    private final LoggerManager loggerManager = new LoggerManager();
 
-    private final ExtensionLoader extensionCreator;
-    private final Map<String, IExtension> extensionMap = new ConcurrentHashMap<>();
-    private final Map<String, String> settings = new HashMap<>();
+    private ILogger mainLogger;
+    @Nullable
+    private SharedDependencyLord sharedDependencyLord;
+    @Getter @Nullable
+    private ServiceLoader serviceLoader;
+    @Getter @Nullable
+    private ExtensionLoader extensionLoader;
+    @Getter @Nullable
+    private SettingsManager settingsManager;
+    @Nullable
+    private URLClassLoader serverClassLoader;
 
-    private final URLClassLoader2 serverClassLoader;
 
-    private Server() {
-        serverClassLoader = new URLClassLoader2(new URL[0], ClassLoader.getSystemClassLoader());
+    public Server(Path workingPath) throws IOException {
+        this.workingPath = workingPath;
+        this.parentClassLoader = this.getClass().getClassLoader();
+        final ServerLiveCycleImpl serverLiveCycle = new ServerLiveCycleImpl(this);
+        liveCycleController = new LiveCycleController(LoggerSystemOut.instance, "Server", serverLiveCycle);
 
-        loggerManager = new LoggerManager();
-        mainLogger = loggerManager.getMainLogger();
-        serviceManager = new ServiceManager(this, serverClassLoader);
-        extensionCreator = new ExtensionLoader(this, serverClassLoader, getWorkingPath());
+        mainLogger = LoggerSystemOut.instance;
+        liveCycleController.setLogger(mainLogger);
+
         projectProperties = new ProjectProperties();
-    }
-
-    public static IServerControl createNewInstance(){
-        if (instance!=null) throw new IllegalStateException("Server already created");
-        instance = new Server();
-        return instance;
-    }
-
-    public static IServer getInstance(){
-        return instance;
-    }
-
-    // Start-Stop-Status
-
-    @Override
-    public synchronized void start() throws Throwable {
-        if (status!=StartStopStatus.STOPPED) throw new IllegalStateException("Is not stopped");
-        status = StartStopStatus.STARTING;
-        mainLogger.writeInfo("Starting server...");
-
-        // ...
         projectProperties.load(ClassLoader.getSystemClassLoader().getResourceAsStream("project.properties"));
-        mainLogger.writeInfo("Server version is "+projectProperties.getVersion());
-
-        mainLogger.writeInfo("Server was started");
-        status = StartStopStatus.STARTED;
     }
 
-    @Override
-    public synchronized void stop(boolean force) throws Throwable {
-        if (status!=StartStopStatus.STARTED) throw new IllegalStateException("Is not started");
-        status = StartStopStatus.STOPPING;
-        mainLogger.writeInfo("Stopping server");
+    // ------- live cycle
 
-        boolean flag = true;
+    public ILiveCycle getLiveCycle(){
+        return liveCycleController;
+    }
 
-        for(IExtension ext: extensionMap.values()){
-            try {
-                if (ext.getStatus()==StartStopStatus.STOPPED) continue;
-                ext.stop(force);
-            } catch (Throwable ex){
-                mainLogger.writeException(ex);
-                flag = false;
+    private final class ServerLiveCycleImpl implements ILiveCycleImpl {
+        private final Server server;
+
+        private ServerLiveCycleImpl(Server server) {
+            this.server = server;
+        }
+
+        @Override
+        public void init() throws Throwable {
+            mainLogger = loggerManager.getMainLogger();
+            liveCycleController.setLogger(mainLogger);
+
+            mainLogger.info("Server version is " + projectProperties.getVersion());
+
+            serverClassLoader = new URLClassLoader(new URL[0], parentClassLoader);
+
+            sharedDependencyLord = new SharedDependencyLord(
+                    Paths.get(server.getWorkingPath().toString(), "core")
+            );
+
+            serviceLoader = new ServiceLoader(server,
+                    sharedDependencyLord,
+                    serverClassLoader,
+                    //Thread.currentThread().getThreadGroup(),
+                    mainLogger
+            );
+            extensionLoader = new ExtensionLoader(server, sharedDependencyLord, serverClassLoader, mainLogger);
+
+            settingsManager.setListener(new SettingListenerContainer(
+                    BaseServerSettings.KEY_AUTO_FIX_BROKEN_ENABLE,
+                    new BooleanSettingListener() {
+                        @Override
+                        public void apply2(String key, Boolean val, SettingListenerEventMask eventMask) {
+                            liveCycleController.setEnabledAutoFixBroken(val);
+                        }
+                    },
+                    Boolean.toString(false)
+            ));
+        }
+
+        @Override
+        public void start() throws Throwable {
+        }
+
+        @Override
+        public void stopSlow() throws Throwable {
+            for (final IService<?> service: serviceLoader.getServices()){
+                try {
+                    service.getLiveCycle().announceStop();
+                } catch (IllegalStateException illegalStateException){
+                    mainLogger.exception(illegalStateException);
+                }
+            }
+
+            for (final IExtension<?> ext: extensionLoader.getExtensions()){
+                try {
+                    ext.getLiveCycle().announceStop();
+                } catch (IllegalStateException illegalStateException){
+                    mainLogger.exception(illegalStateException);
+                }
+            }
+
+            // ---
+
+            for (final IService<?> service: serviceLoader.getServices()){
+                try {
+                    service.getLiveCycle().stopSlow();
+                } catch (IllegalStateException illegalStateException){
+                    mainLogger.exception(illegalStateException);
+                }
+            }
+
+            for (final IExtension<?> ext: extensionLoader.getExtensions()){
+                try {
+                    ext.getLiveCycle().stopSlow();
+                } catch (IllegalStateException illegalStateException){
+                    mainLogger.exception(illegalStateException);
+                }
             }
         }
 
-        if (flag)
-            status = StartStopStatus.STOPPED;
-        else
-            status = StartStopStatus.STARTED;
-        mainLogger.writeInfo("Server was stopped = "+flag);
-    }
+        @Override
+        public void stopForce() {
+            serviceLoader.getServices().forEach( (service) -> {
+                try {
+                    if (service.getLiveCycle().getStatus().isStarted() || service.getLiveCycle().getStatus().isBroken()) {
+                        service.getLiveCycle().stopForce();
+                    }
+                } catch (IllegalStateException illegalStateException){
+                    mainLogger.exception(illegalStateException);
+                }
+            });
 
-    @Override
-    public synchronized StartStopStatus getStatus() {
-        return status;
-    }
+            extensionLoader.getExtensions().forEach( (ext) -> {
+                try {
+                    if (ext.getLiveCycle().getStatus().isStarted() || ext.getLiveCycle().getStatus().isBroken()) {
+                        ext.getLiveCycle().stopForce();
+                    }
+                } catch (IllegalStateException illegalStateException){
+                    mainLogger.exception(illegalStateException);
+                }
+            });
+        }
 
-    // ------- extensions
+        @Override
+        public void destroy() {
+            if (settingsManager != null){
+                settingsManager.removeAllListeners();
+            }
+            settingsManager = null;
 
-    @Override
-    public ExtensionLoader getExtensionCreator() {
-        return extensionCreator;
-    }
+            if (serviceLoader != null) {
+                serviceLoader.deleteAllServices();
+            }
+            serviceLoader = null;
 
-    @Override
-    public void addExtension(IExtension extension) {
-        extensionMap.put(extension.getType(), extension);
-    }
+            if (extensionLoader != null) {
+                extensionLoader.deleteAllExtensions();
+            }
+            extensionLoader = null;
 
-    @Override @Nullable
-    public IExtension getExtension(String type){
-        return extensionMap.get(type);
-    }
+            mainLogger = LoggerSystemOut.instance;
+            liveCycleController.setLogger(mainLogger);
+            loggerManager.unregisterLoggers();
 
-    @Override
-    public Iterable<IExtension> getExtensions() {
-        return extensionMap.values();
-    }
+            if (sharedDependencyLord != null) {
+                sharedDependencyLord.releaseAllSharedDeps();
+            }
+            sharedDependencyLord = null;
 
-    @Override
-    public void removeExtension(String type) {
-        extensionMap.remove(type);
-    }
+            if (serverClassLoader != null) {
+                try {
+                    serverClassLoader.close();
+                } catch (IOException e) {
+                    try {
+                        mainLogger.exception(e);
+                    } catch (Throwable ignored){
+                    }
+                }
+            }
+            serverClassLoader = null;
+        }
 
-    // -------- managers
+        @Override
+        public boolean canBeStoppedSafe() {
+            for (final IService<?> service: serviceLoader.getServices()){
+                if (!service.getLiveCycle().canBeStoppedSafe()) return false;
+            }
 
-    @Override
-    public LoggerManager getLoggerManager() {
-        return loggerManager;
-    }
+            for (final IExtension<?> extension: extensionLoader.getExtensions()){
+                if (!extension.getLiveCycle().canBeStoppedSafe()) return false;
+            }
 
-    @Override
-    public ServiceManager getServiceManager() {
-        return serviceManager;
-    }
+            return true;
+        }
 
-    @Override
-    public IServiceManagerRemote getServiceManagerRemote(String host, int port)
-            throws RemoteException, NotBoundException, ClassCastException {
+        @Override
+        public void announceStop() {
+            for (final IService<?> service: serviceLoader.getServices()){
+                service.getLiveCycle().announceStop();
+            }
 
-        return (IServiceManagerRemote) LocateRegistry.getRegistry(host, port)
-                .lookup(ServiceManagerRemoteSafe.REGISTRY_NAME);
-    }
-
-    @Override
-    public ServiceManagerRemoteSafe createServiceManagerRemoteSafe(String host, int port){
-        return new ServiceManagerRemoteSafe(host, port);
-    }
-
-    // ----- settigns
-
-    @Override
-    public void setSetting(String key, String val){
-        settings.put(key, val);
-    }
-
-    @Override
-    public String getSetting(String key){
-        return settings.get(key);
-    }
-
-    @Override
-    public String getSettingOrDefault(String key, String defaultVal){
-        return settings.getOrDefault(key, defaultVal);
-    }
-
-    @Override
-    public void addBaseLib(URL url) {
-        serverClassLoader.addURL(url);
-    }
-
-    // ------- utils
-
-    @Override
-    public String getWorkingPath() {
-        //return ClassLoader.getSystemClassLoader().getResource("/").getPath();
-        return System.getProperty("user.dir");
-    }
-
-    @Override
-    public ProjectProperties getProjectProperties() {
-        return projectProperties;
+            for (final IExtension<?> extension: extensionLoader.getExtensions()){
+                extension.getLiveCycle().announceStop();
+            }
+        }
     }
 }

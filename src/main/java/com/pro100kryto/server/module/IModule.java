@@ -1,17 +1,22 @@
 package com.pro100kryto.server.module;
 
-import com.pro100kryto.server.IStartStopAlive;
+import com.pro100kryto.server.Tenant;
+import com.pro100kryto.server.livecycle.ILiveCycle;
 import com.pro100kryto.server.service.IService;
+import com.pro100kryto.server.settings.Settings;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Map;
+public interface IModule <MC extends IModuleConnection> {
+    IService<?> getService();
 
-public interface IModule extends IStartStopAlive {
-    @Nullable
-    IModuleConnection getModuleConnection();
-    IService getService();
     String getType();
     String getName();
-    void setSettings(Map<String, String> config);
-    void tick() throws Throwable;
+    ILiveCycle getLiveCycle();
+    Settings getSettings();
+
+    @Nullable
+    MC createModuleConnection();
+    ModuleConnectionSafeFromService<MC> createModuleConnectionSafe();
+
+    Tenant asTenant();
 }

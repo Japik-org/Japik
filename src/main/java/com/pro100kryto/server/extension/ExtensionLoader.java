@@ -1,54 +1,282 @@
 package com.pro100kryto.server.extension;
 
-import com.pro100kryto.server.Constants;
-import com.pro100kryto.server.IServerControl;
-import com.pro100kryto.server.URLClassLoader2;
+import com.pro100kryto.server.*;
+import com.pro100kryto.server.exceptions.ManifestNotFoundException;
+import com.pro100kryto.server.logger.ILogger;
+import com.pro100kryto.server.utils.ResolveDependenciesIncompleteException;
+import com.pro100kryto.server.utils.UtilsInternal;
+import net.bytebuddy.dynamic.loading.MultipleParentClassLoader;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.lang.instrument.IllegalClassFormatException;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.*;
+import java.util.concurrent.locks.ReentrantLock;
 
 public final class ExtensionLoader {
-    private final IServerControl serverControl;
-    private final String workingPath;
-    private final URLClassLoader2 parentClassLoader;
+    private final Server server;
+    private final SharedDependencyLord sharedDependencyLord;
+    private final ClassLoader baseClassLoader;
+    private final ILogger logger;
 
-    public ExtensionLoader(IServerControl serverControl, URLClassLoader2 parentClassLoader, String workingPath) {
-        this.serverControl = serverControl;
-        this.workingPath = workingPath;
-        this.parentClassLoader = parentClassLoader;
+    private final Map<String, IExtension<?>> typeExtMap = Collections.synchronizedMap(new HashMap<>());
+    private final Map<String, URLClassLoader> typePrivateDepsCLMap = new HashMap<>();
+    private final Map<String, MultipleParentClassLoader> typeUnionCLMap = new HashMap<>();
+
+    private final ReentrantLock lock = new ReentrantLock();
+
+    public ExtensionLoader(Server server, SharedDependencyLord sharedDependencyLord, ClassLoader baseClassLoader, ILogger logger) {
+        this.server = server;
+        this.sharedDependencyLord = sharedDependencyLord;
+        this.baseClassLoader = baseClassLoader;
+        this.logger = logger;
     }
 
-    public IExtension create(String type)
-            throws FileNotFoundException, IllegalClassFormatException, NoSuchMethodException,
-            IllegalAccessException, InvocationTargetException, InstantiationException,
-            MalformedURLException, ClassNotFoundException {
+    public <EC extends IExtensionConnection> IExtension<EC> createExtension(String extType) throws
+            ExtensionAlreadyExistsException,
+            IOException,
+            ResolveDependenciesIncompleteException,
+            IllegalExtensionFormatException,
+            IllegalAccessException{
 
-        final String className = Constants.BASE_PACKET_NAME + ".extensions."+type+"Extension";
-
-        final File fileExt = new File(workingPath + File.separator
-                + "core" + File.separator
-                + "extensions" + File.separator
-                + type.toLowerCase() + "-extension.jar");
-
-        if (!fileExt.exists()) {
-            throw new FileNotFoundException("File \"" + fileExt.getAbsolutePath() + "\" not found");
+        if (server.getLiveCycle().getStatus().isNotInitialized()){
+            throw new IllegalStateException();
         }
 
-        final ClassLoader classLoader = new URLClassLoader(new URL[]{
-                fileExt.toURI().toURL(),
-        }, parentClassLoader);
-        Class<?> cls = classLoader.loadClass(className);
-        if (!IExtension.class.isAssignableFrom(cls))
-            throw new IllegalClassFormatException("Is not assignable to IExtension");
+        lock.lock();
+        try {
 
-        final Constructor<?> ctor = cls.getConstructor(IServerControl.class);
-        final IExtension extension = (IExtension) ctor.newInstance(serverControl);
-        return extension;
+            {
+                final IExtension<?> existingExt = typeExtMap.get(extType);
+                if (existingExt != null) {
+                    throw new ExtensionAlreadyExistsException(existingExt);
+                }
+            }
+
+            // define ext files
+            final File extConnectionFile = Paths.get(sharedDependencyLord.getCorePath().toString(),
+                    "extensions",
+                    extType.toLowerCase() + "-extension-connection.jar").toFile();
+            if (!extConnectionFile.exists()) {
+                throw new FileNotFoundException(extConnectionFile.getCanonicalPath() + " not found");
+            }
+
+            final File extFile = Paths.get(sharedDependencyLord.getCorePath().toString(),
+                    "extensions",
+                    extType.toLowerCase() + "-extension.jar").toFile();
+            if (!extFile.exists()) {
+                throw new FileNotFoundException(extFile.getCanonicalPath() + " not found");
+            }
+
+            // rent ext conn
+            final Tenant extAsTenant = new Tenant("Extension type='" + extType + "'");
+            final SharedDependency connDependency = sharedDependencyLord.rentSharedDep(
+                    extAsTenant,
+                    extConnectionFile.toPath()
+            );
+
+            // try resolve or release
+            try {
+                try {
+                    ResolveDependenciesIncompleteException.Builder incompleteBuilder = new ResolveDependenciesIncompleteException.Builder();
+
+                    // resolve
+                    if (!connDependency.isResolved()) {
+                        try {
+                            connDependency.resolve();
+                            // !! IOException !!
+
+                        } catch (ManifestNotFoundException warningException) {
+                            incompleteBuilder.addWarning(warningException);
+
+                        } catch (ResolveDependenciesIncompleteException resolveDependenciesIncompleteException) {
+                            incompleteBuilder.addCause(resolveDependenciesIncompleteException);
+                            if (resolveDependenciesIncompleteException.hasErrors()) {
+                                throw incompleteBuilder.build();
+                            }
+                        }
+                    }
+
+                    // setup private deps
+                    final ArrayList<Path> privateClassPathList = new ArrayList<>();
+
+                    try {
+                        UtilsInternal.readClassPathRecursively(
+                                extFile,
+                                sharedDependencyLord.getCorePath(),
+                                privateClassPathList,
+                                true);
+
+                    } catch (ManifestNotFoundException warningException) {
+                        incompleteBuilder.addWarning(warningException);
+
+                    } catch (ResolveDependenciesIncompleteException resolveDependenciesIncompleteException) {
+                        incompleteBuilder.addCause(resolveDependenciesIncompleteException);
+                        if (resolveDependenciesIncompleteException.hasErrors()) {
+                            throw incompleteBuilder.build();
+                        }
+                    }
+
+                    final URLClassLoader privateDepsClassLoader = new URLClassLoader(
+                            (URL[]) Arrays.stream(privateClassPathList.toArray(new Path[0]))
+                                    .map((path) -> {
+                                        try {
+                                            return path.toUri().toURL();
+                                        } catch (MalformedURLException ignored) {
+                                        }
+                                        return null;
+                                    }).filter(Objects::nonNull)
+                                    .toArray(),
+                            connDependency.getClassLoader()
+                    );
+
+                    // setup union ClassLoader
+                    final MultipleParentClassLoader unionClassLoader = new MultipleParentClassLoader(
+                            new ArrayList<ClassLoader>(3) {{
+                                add(privateDepsClassLoader); // private deps
+                                add(connDependency.getClassLoader()); // shared + connection
+                                add(baseClassLoader); // parent
+                            }}
+                    );
+
+                    // create ext
+                    final Class<?> extClass = Class.forName(
+                            Constants.BASE_PACKET_NAME + ".modules." + extType + "Module",
+                            true, unionClassLoader
+                    );
+                    if (!IExtension.class.isAssignableFrom(extClass)) {
+                        throw new IllegalClassFormatException("Is not assignable to IExtension");
+                    }
+                    final Constructor<?> ctor = extClass.getConstructor(
+                            ExtensionParams.class
+                    );
+                    final IExtension<EC> extension = (IExtension<EC>) ctor.newInstance(
+                            new ExtensionParams(
+                                    server,
+                                    extType,
+                                    logger,
+                                    extAsTenant
+                            )
+                    );
+
+                    // fill maps
+                    typeExtMap.put(extType, extension);
+                    typePrivateDepsCLMap.put(extType, privateDepsClassLoader);
+                    typeUnionCLMap.put(extType, unionClassLoader);
+
+                    logger.info("New extension created. " + extension.toString());
+                    return extension;
+
+                } catch (IllegalAccessException illegalAccessException) {
+                    throw illegalAccessException;
+
+                } catch (ClassCastException |
+                        ReflectiveOperationException |
+                        IllegalClassFormatException formatException) {
+                    throw new IllegalExtensionFormatException(formatException);
+                }
+
+            } finally {
+                sharedDependencyLord.releaseSharedDeps(extAsTenant);
+                typeExtMap.remove(extType);
+                typeUnionCLMap.remove(extType);
+                try {
+                    typePrivateDepsCLMap.remove(extType).close();
+                } catch (NullPointerException ignored) {
+                }
+            }
+
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void deleteExtension(String extType) throws ExtensionNotFoundException {
+        if (server.getLiveCycle().getStatus().isNotInitialized()){
+            throw new IllegalStateException();
+        }
+
+        lock.lock();
+        try {
+
+            @Nullable final IExtension<?> extension = typeExtMap.get(extType);
+            if (extension == null) {
+                throw new ExtensionNotFoundException(extType);
+            }
+
+            logger.info("Deleting " + extension.toString());
+
+            if (extension.getLiveCycle().getStatus().isStarted() || extension.getLiveCycle().getStatus().isBroken()) {
+                try {
+                    extension.getLiveCycle().stopForce();
+                } catch (Throwable throwable) {
+                    logger.exception(throwable);
+                }
+            }
+
+            typeExtMap.remove(extType);
+
+            try {
+                typeUnionCLMap.remove(extType);
+                typePrivateDepsCLMap.remove(extType).close();
+            } catch (IOException ioException) {
+                logger.exception(ioException, "Failed to close ClassLoader for Extension type='" + extType + "'");
+            }
+
+            sharedDependencyLord.releaseSharedDeps(extension.asTenant());
+
+            logger.info("Extension type='" + extType + "' deleted");
+
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public boolean existsExtension(String extType){
+        return typeExtMap.containsKey(extType);
+    }
+
+    public IExtension<?> getExtension(String extType){
+        return typeExtMap.get(extType);
+    }
+
+    public Iterable<String> getExtensionTypes(){
+        return typeExtMap.keySet();
+    }
+
+    public Iterable<IExtension<?>> getExtensions(){
+        return typeExtMap.values();
+    }
+
+    public int getExtensionsCount(){
+        return typeExtMap.size();
+    }
+
+    public void deleteAllExtensions(){
+        if (server.getLiveCycle().getStatus().isNotInitialized()){
+            throw new IllegalStateException();
+        }
+
+        lock.lock();
+        try{
+
+            while (!typeExtMap.isEmpty()){
+                try {
+                    deleteExtension(typeExtMap.keySet().iterator().next());
+                } catch (ExtensionNotFoundException ignored) {
+                }
+            }
+
+        } finally {
+            lock.unlock();
+        }
     }
 }

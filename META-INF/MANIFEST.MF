@@ -1,4 +1,4 @@
 Manifest-Version: 1.0
 Main-Class: com.pro100kryto.server.Starter
-Class-Path: core/lib/commons-cli-1.4.jar core/lib/annotations-13.0.jar
-
+Class-Path: core/lib/commons-cli-1.4.jar
+ core/lib/annotations-13.0.jar

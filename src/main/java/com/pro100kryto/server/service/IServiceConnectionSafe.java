@@ -1,16 +1,17 @@
 package com.pro100kryto.server.service;
 
-import org.jetbrains.annotations.Nullable;
+import java.io.Closeable;
 
-public interface IServiceConnectionSafe <T extends IServiceConnection>{
+public interface IServiceConnectionSafe <SC extends IServiceConnection> extends Closeable {
     String getServiceName();
 
-    @Nullable
-    T getServiceConnection();
-
+    void refreshConnection() throws Throwable;
     boolean isAliveConnection();
-    boolean refreshConnection();
+    SC getServiceConnection() throws Throwable;
 
-    void setAutoReconnectEnabled(boolean enabledAutoReconnect);
     boolean isAutoReconnectEnabled();
+    void setAutoReconnectEnabled(boolean enabled);
+
+    void close();
+    boolean isClosed();
 }

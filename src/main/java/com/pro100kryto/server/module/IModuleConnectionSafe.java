@@ -1,18 +1,17 @@
 package com.pro100kryto.server.module;
 
-import com.pro100kryto.server.service.IService;
-import org.jetbrains.annotations.Nullable;
+import java.io.Closeable;
 
-public interface IModuleConnectionSafe <T extends IModuleConnection> {
-    IService getService();
+public interface IModuleConnectionSafe <MC extends IModuleConnection> extends Closeable {
     String getModuleName();
 
-    @Nullable
-    T getModuleConnection();
-
+    void refreshConnection() throws Throwable;
     boolean isAliveConnection();
-    boolean refreshConnection();
+    MC getModuleConnection() throws Throwable;
 
-    void setAutoReconnectEnabled(boolean enabledAutoReconnect);
     boolean isAutoReconnectEnabled();
+    void setAutoReconnectEnabled(boolean enabled);
+
+    void close();
+    boolean isClosed();
 }

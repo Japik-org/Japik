@@ -1,13 +1,15 @@
 package com.pro100kryto.server.module;
 
 
-public interface IModuleConnection{
-    String getModuleType();
+import java.io.Closeable;
+
+public interface IModuleConnection extends Closeable {
     String getModuleName();
-    int addEventListener(IModuleConnectionEventListener listener);
-    int addEventListener(IModuleConnectionEventListener listener, int eventType);
-    void callEvent(IModuleConnectionEvent event) throws Throwable;
+    String getModuleType();
 
     boolean ping();
     boolean isAliveModule();
+
+    void close();
+    boolean isClosed();
 }

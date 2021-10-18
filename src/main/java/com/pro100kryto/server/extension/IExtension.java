@@ -1,10 +1,14 @@
 package com.pro100kryto.server.extension;
 
 
-import com.pro100kryto.server.IStartStopAlive;
+import com.pro100kryto.server.Tenant;
+import com.pro100kryto.server.livecycle.ILiveCycle;
 
-public interface IExtension extends IStartStopAlive {
+public interface IExtension <EC extends IExtensionConnection> {
     String getType();
+    ILiveCycle getLiveCycle();
 
-    void sendCommand(String command) throws Throwable;
+    EC createExtensionConnection();
+
+    Tenant asTenant();
 }
