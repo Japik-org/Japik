@@ -28,7 +28,7 @@ public final class Starter {
         options.addOption(new Option("a", "ext-add", true, "add extension"));
         options.addOption(new Option("s", "start", false, "start server"));
 
-        final CommandLineParser parser = new DefaultParser();
+        final CommandLineParser parser = new BasicParser();
         final HelpFormatter formatter = new HelpFormatter();
 
         try {
