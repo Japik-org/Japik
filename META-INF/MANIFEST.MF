@@ -1,4 +1,6 @@
 Manifest-Version: 1.0
 Main-Class: com.pro100kryto.server.Starter
-Class-Path: core/lib/commons-cli-1.4.jar
- core/lib/annotations-13.0.jar
+Class-Path: lib/eclipse-collections-11.0.0.M2.jar lib/eclipse-collection
+ s-api-11.0.0.M2.jar lib/commons-cli-20040117.000000.jar lib/annotations
+ -22.0.0.jar lib/byte-buddy-1.11.20.jar lib/lombok-1.18.22.jar
+
