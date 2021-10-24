@@ -16,6 +16,7 @@ public final class Tick implements ITickRunnableCallback, ITick, ITickSettings {
 
     @Getter @Setter
     private long maxTicksCount = -1;
+    private final Object ticksCountLocker = new Object();
     @Getter
     private long ticksCount = 0;
     private int ticksCounterPerSec;
@@ -42,11 +43,14 @@ public final class Tick implements ITickRunnableCallback, ITick, ITickSettings {
 
         // calc ticks per sec
         ticksCounterPerSec++;
-        ticksCount = Math.max(ticksCount+1, 0);
 
-        if (ticksCount >= maxTicksCount){
-            inactivate();
-            return;
+        synchronized (ticksCountLocker) {
+            if (getStatus() != TickStatus.ACTIVATED) return;
+            ticksCount = Math.max(ticksCount + 1, 0);
+            if (ticksCount == maxTicksCount) {
+                inactivate();
+                return;
+            }
         }
 
         if ((dtCounter+=timeDiff)>1000) {
