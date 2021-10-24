@@ -11,7 +11,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public final class TickGroupCollection implements ITickGroupCallback {
     private final Tenant tenant;
-    private final LongObjectHashMap<ITickGroup> idTickGroupMap = new LongObjectHashMap<>();
+    private final LongObjectHashMap<ITickGroup> idTickGroupMap = new LongObjectHashMap<>(); // TODO: long initialization?
     private final ReentrantLock mapLock = new ReentrantLock();
     private final ILogger logger;
     private final AtomicLong groupIdCounter;
