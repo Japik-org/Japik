@@ -11,10 +11,7 @@ import com.pro100kryto.server.logger.LoggerSystemOut;
 import com.pro100kryto.server.properties.ProjectProperties;
 import com.pro100kryto.server.service.IService;
 import com.pro100kryto.server.service.ServiceLoader;
-import com.pro100kryto.server.settings.BooleanSettingListener;
-import com.pro100kryto.server.settings.SettingListenerContainer;
-import com.pro100kryto.server.settings.SettingListenerEventMask;
-import com.pro100kryto.server.settings.SettingsManager;
+import com.pro100kryto.server.settings.*;
 import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
 
@@ -24,7 +21,7 @@ import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-public final class Server{
+public final class Server implements ISettingsManagerCallback {
     @Getter
     private final Path workingPath;
 
@@ -43,8 +40,8 @@ public final class Server{
     private ServiceLoader serviceLoader;
     @Getter @Nullable
     private ExtensionLoader extensionLoader;
-    @Getter @Nullable
-    private SettingsManager settingsManager;
+    @Getter
+    private final SettingsManager settingsManager;
     @Nullable
     private URLClassLoader serverClassLoader;
 
@@ -59,6 +56,8 @@ public final class Server{
 
         mainLogger = LoggerSystemOut.instance;
         liveCycleController.setLogger(mainLogger);
+
+        settingsManager = new SettingsManager(this, mainLogger);
 
         projectProperties = new ProjectProperties();
         projectProperties.load(ClassLoader.getSystemClassLoader().getResourceAsStream("project.properties"));
@@ -176,10 +175,7 @@ public final class Server{
 
         @Override
         public void destroy() {
-            if (settingsManager != null){
-                settingsManager.removeAllListeners();
-            }
-            settingsManager = null;
+            settingsManager.removeAllListeners();
 
             if (serviceLoader != null) {
                 serviceLoader.deleteAllServices();
