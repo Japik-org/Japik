@@ -15,17 +15,18 @@ import org.eclipse.collections.impl.map.mutable.primitive.LongObjectHashMap;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
 public final class TickGroupFreeMod extends ATickGroup {
-    private final Object tickListLocker = new Object();
-
     @Getter
     private BaseSettings baseSettings;
 
     private LongObjectHashMap<Tick> tickMap;
-    private ArrayList<Tick> tickStartedList;
+    private final List<Tick> tickStartedList = Collections.synchronizedList(new ArrayList<>());
     private AtomicLong tickIdCounter;
 
     private Thread thread;
@@ -85,29 +86,40 @@ public final class TickGroupFreeMod extends ATickGroup {
     public void setTickActive(long id) throws IllegalArgumentException{
         final Tick tick = tickMap.get(id);
         if (tick == null) throw new IllegalArgumentException("Failed activate tick (group #"+this.id+"). Tick #"+id+" not found");
-        tickStartedList.add(tick);
+        synchronized (tickStartedList) {
+            tickStartedList.add(tick);
+        }
     }
 
     @Override
     public void setTickInactive(long id) throws IllegalArgumentException{
         final Tick tick = tickMap.get(id);
         if (tick == null) throw new IllegalArgumentException("Failed inactivate tick (group #"+this.id+"). Tick #"+id+" not found");
-        tickStartedList.remove(tick);
+        synchronized (tickStartedList) {
+            tickStartedList.remove(tick);
+        }
     }
 
     // LiveCycle
 
     @Override
     protected ILiveCycleImpl getDefaultLiveCycleImpl() {
-        return new LiveCycleImpl();
+        return new LiveCycleImpl(this);
     }
 
     private final class LiveCycleImpl implements ILiveCycleImpl {
+        private final TickGroupFreeMod tickGroupFreeMod;
+
+        private LiveCycleImpl(TickGroupFreeMod tickGroupFreeMod) {
+            this.tickGroupFreeMod = tickGroupFreeMod;
+        }
 
         @Override
         public void init() throws SettingsApplyIncompleteException {
             tickMap = new LongObjectHashMap<>();
-            tickStartedList = new ArrayList<>();
+            synchronized (tickStartedList) {
+                tickStartedList.clear();
+            }
             tickIdCounter = new AtomicLong(0);
 
             settingsManager.setCommonSettingsListener((settings, eventMask) -> {
@@ -120,7 +132,7 @@ public final class TickGroupFreeMod extends ATickGroup {
 
         @Override
         public void start() {
-            thread = new TickGroupThread();
+            thread = new TickGroupThread(tickGroupFreeMod);
             thread.start();
         }
 
@@ -143,8 +155,10 @@ public final class TickGroupFreeMod extends ATickGroup {
         public void destroy() {
             settingsManager.removeAllListeners();
 
+            synchronized (tickStartedList) {
+                tickStartedList.clear();
+            }
             tickMap = null;
-            tickStartedList = null;
             tickIdCounter = null;
         }
 
@@ -160,24 +174,28 @@ public final class TickGroupFreeMod extends ATickGroup {
 
     // thread
 
-    private final class TickGroupThread extends Thread{
+    private static final class TickGroupThread extends Thread{
+        private final TickGroupFreeMod tickGroupFreeMod;
 
-        public TickGroupThread() {
+        public TickGroupThread(TickGroupFreeMod tickGroupFreeMod) {
             super(() -> {
-                try {
-                    while (!currentThread().isInterrupted()) {
-                        Thread.sleep(baseSettings.getSleepBeforeTicks());
-                        synchronized (tickListLocker) {
-                            for (final Tick tick : tickStartedList) {
-                                tick.tick();
-                                Thread.sleep(baseSettings.getSleepBetweenTicks());
+                while (!currentThread().isInterrupted()) {
+                    try {
+                        while (!currentThread().isInterrupted()) {
+                            Thread.sleep(tickGroupFreeMod.baseSettings.getSleepBeforeTicks());
+                            synchronized (tickGroupFreeMod.tickStartedList) {
+                                for (final Tick tick : tickGroupFreeMod.tickStartedList) {
+                                    tick.tick();
+                                    Thread.sleep(tickGroupFreeMod.baseSettings.getSleepBetweenTicks());
+                                }
                             }
                         }
+                    } catch (Throwable throwable) {
+                        tickGroupFreeMod.logger.exception(throwable, "TickGroup thread exception");
                     }
-                } catch (Throwable throwable){
-                    logger.exception(throwable,"TickGroup thread exception");
                 }
             });
+            this.tickGroupFreeMod = tickGroupFreeMod;
         }
     }
 
