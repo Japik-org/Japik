@@ -10,7 +10,6 @@ import com.pro100kryto.server.service.IService;
 import com.pro100kryto.server.service.IllegalModuleFormatException;
 import com.pro100kryto.server.utils.ResolveDependenciesIncompleteException;
 import com.pro100kryto.server.utils.UtilsInternal;
-import net.bytebuddy.dynamic.loading.MultipleParentClassLoader;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
@@ -33,8 +32,7 @@ public final class ModuleLoader {
     private final ILogger logger;
 
     private final Map<String, IModule<?>> nameModuleMap = Collections.synchronizedMap(new HashMap<>());
-    private final Map<String, URLClassLoader> namePrivateDepsCLMap = new HashMap<>();
-    private final Map<String, MultipleParentClassLoader> nameUnionCLMap = new HashMap<>();
+    private final Map<String, URLClassLoader> namePrivateCLMap = new HashMap<>();
 
     private final ReentrantLock lock = new ReentrantLock();
 
@@ -71,8 +69,9 @@ public final class ModuleLoader {
             final File moduleConnectionFile = Paths.get(sharedDependencyLord.getCorePath().toString(),
                     "modules",
                     moduleType.toLowerCase() + "-module-connection.jar").toFile();
-            if (!moduleConnectionFile.exists())
-                throw new FileNotFoundException(moduleConnectionFile.getCanonicalPath() + " not found");
+            if (!moduleConnectionFile.exists()){
+                logger.warn(moduleConnectionFile.getCanonicalPath() + " not found");
+            }
 
             final File moduleFile = Paths.get(sharedDependencyLord.getCorePath().toString(),
                     "modules",
@@ -93,7 +92,7 @@ public final class ModuleLoader {
                     ResolveDependenciesIncompleteException.Builder incompleteBuilder = new ResolveDependenciesIncompleteException.Builder();
 
                     // resolve
-                    if (!connDependency.isResolved()) {
+                    if (moduleConnectionFile.exists() && !connDependency.isResolved()) {
                         try {
                             connDependency.resolve();
                             // !! IOException !!
@@ -138,23 +137,15 @@ public final class ModuleLoader {
                                         }
                                         return null;
                                     }).filter(Objects::nonNull)
-                                    .toArray(),
-                            connDependency.getClassLoader()
+                                    .toArray(URL[]::new),
+                            (connDependency.isResolved() ? connDependency.getClassLoader() : baseClassLoader)
                     );
 
-                    // setup union ClassLoader
-                    final MultipleParentClassLoader unionClassLoader = new MultipleParentClassLoader(
-                            new ArrayList<ClassLoader>(3) {{
-                                add(privateDepsClassLoader); // private deps
-                                add(connDependency.getClassLoader()); // shared + connection
-                                add(baseClassLoader); // parent
-                            }}
-                    );
-
-                    // create module
+                    // load module class
+                    final String modulePkgName = Constants.BASE_PACKET_NAME + ".modules." + moduleType.toLowerCase();
                     final Class<?> moduleClass = Class.forName(
-                            Constants.BASE_PACKET_NAME + ".modules." + moduleType + "Module",
-                            true, unionClassLoader
+                            modulePkgName + "." + moduleType + "Module",
+                            true, privateDepsClassLoader
                     );
                     if (!IModule.class.isAssignableFrom(moduleClass)) {
                         throw new IllegalClassFormatException("Is not assignable to IModule");
@@ -162,6 +153,22 @@ public final class ModuleLoader {
                     final Constructor<?> ctor = moduleClass.getConstructor(
                             ModuleParams.class
                     );
+
+                    // load packages
+                    if (connDependency.isResolved()){
+                        UtilsInternal.loadAllClasses(
+                                connDependency.getClassLoader(),
+                                moduleConnectionFile.toURI().toURL(),
+                                modulePkgName+".connection"
+                        );
+                    }
+                    UtilsInternal.loadAllClasses(
+                            privateDepsClassLoader,
+                            moduleFile.toURI().toURL(),
+                            modulePkgName
+                    );
+
+                    // create module object
                     final IModule<MC> module = (IModule<MC>) ctor.newInstance(
                             new ModuleParams(
                                     service,
@@ -173,8 +180,7 @@ public final class ModuleLoader {
 
                     // fill maps
                     nameModuleMap.put(moduleName, module);
-                    namePrivateDepsCLMap.put(moduleName, privateDepsClassLoader);
-                    nameUnionCLMap.put(moduleName, unionClassLoader);
+                    namePrivateCLMap.put(moduleName, privateDepsClassLoader);
 
                     logger.info("New module created. " + module.toString());
                     return module;
@@ -191,9 +197,8 @@ public final class ModuleLoader {
             } catch (Throwable throwable) {
                 sharedDependencyLord.releaseSharedDeps(moduleAsTenant);
                 nameModuleMap.remove(moduleName);
-                nameUnionCLMap.remove(moduleName);
                 try {
-                    namePrivateDepsCLMap.remove(moduleName).close();
+                    namePrivateCLMap.remove(moduleName).close();
                 } catch (NullPointerException ignored) {
                 }
                 throw throwable;
@@ -236,8 +241,7 @@ public final class ModuleLoader {
             nameModuleMap.remove(moduleName);
 
             try {
-                nameUnionCLMap.remove(moduleName);
-                namePrivateDepsCLMap.remove(moduleName).close();
+                namePrivateCLMap.remove(moduleName).close();
             } catch (IOException ioException) {
                 logger.exception(ioException, "Failed to close ClassLoader for Module name='" + moduleName + "'");
             }

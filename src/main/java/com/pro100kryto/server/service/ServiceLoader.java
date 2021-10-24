@@ -7,7 +7,6 @@ import com.pro100kryto.server.logger.LoggerAlreadyExistsException;
 import com.pro100kryto.server.module.ModuleLoader;
 import com.pro100kryto.server.utils.ResolveDependenciesIncompleteException;
 import com.pro100kryto.server.utils.UtilsInternal;
-import net.bytebuddy.dynamic.loading.MultipleParentClassLoader;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
@@ -31,9 +30,10 @@ public final class ServiceLoader {
     private final ILogger logger;
 
     private final Map<String, IService<?>> nameServiceMap = Collections.synchronizedMap(new HashMap<>());
-    private final Map<String, URLClassLoader> namePrivateDepsCLMap = new HashMap<>();
-    private final Map<String, MultipleParentClassLoader> nameUnionCLMap = new HashMap<>();
-    //private final Map<String, ThreadGroup> nameThreadGroupMap = new HashMap<>();
+
+    // a) base <- public/shared <- private
+    // b) base <- private
+    private final Map<String, URLClassLoader> namePrivateCLMap = new HashMap<>();
 
     private final ReentrantLock lock = new ReentrantLock();
 
@@ -75,7 +75,7 @@ public final class ServiceLoader {
                     "services",
                     serviceType.toLowerCase() + "-service-connection.jar").toFile();
             if (!serviceConnectionFile.exists()) {
-                throw new FileNotFoundException(serviceConnectionFile.getCanonicalPath() + " not found");
+                logger.warn(serviceConnectionFile.getCanonicalPath() + " not found");
             }
 
             final File serviceFile = Paths.get(sharedDependencyLord.getCorePath().toString(),
@@ -98,7 +98,7 @@ public final class ServiceLoader {
                     ResolveDependenciesIncompleteException.Builder incompleteBuilder = new ResolveDependenciesIncompleteException.Builder();
 
                     // resolve
-                    if (!connDependency.isResolved()) {
+                    if (serviceConnectionFile.exists() && !connDependency.isResolved()) {
                         try {
                             connDependency.resolve();
                             // !! IOException !!
@@ -121,7 +121,7 @@ public final class ServiceLoader {
                         UtilsInternal.readClassPathRecursively(
                                 serviceFile,
                                 sharedDependencyLord.getCorePath(),
-                                privateClassPathList,
+                                privateClassPathList, // out
                                 true);
 
                     } catch (ManifestNotFoundException warningException) {
@@ -143,17 +143,8 @@ public final class ServiceLoader {
                                         }
                                         return null;
                                     }).filter(Objects::nonNull)
-                                    .toArray(),
-                            connDependency.getClassLoader()
-                    );
-
-                    // setup union ClassLoader
-                    final MultipleParentClassLoader unionClassLoader = new MultipleParentClassLoader(
-                            new ArrayList<ClassLoader>(3) {{
-                                add(privateDepsClassLoader); // private deps
-                                add(connDependency.getClassLoader()); // shared + connection
-                                add(baseClassLoader); // parent
-                            }}
+                                    .toArray(URL[]::new),
+                            (connDependency.isResolved() ? connDependency.getClassLoader() : baseClassLoader)
                     );
 
                     /*
@@ -165,22 +156,39 @@ public final class ServiceLoader {
                     nameThreadGroupMap.put(serviceName, serviceThreadGroup);
                      */
 
-                    // create service
+                    // load service class
+                    final String servicePkgName = Constants.BASE_PACKET_NAME + ".services." + serviceType.toLowerCase();
                     final Class<?> serviceClass = Class.forName(
-                            Constants.BASE_PACKET_NAME + ".services." + serviceType + "Service",
-                            true, unionClassLoader
+                            servicePkgName + "." + serviceType + "Service",
+                            true, privateDepsClassLoader
                     );
                     if (!IService.class.isAssignableFrom(serviceClass))
                         throw new IllegalClassFormatException("Is not assignable to IService");
                     final Constructor<?> ctor = serviceClass.getConstructor(
                             ServiceParams.class
                     );
+
+                    // load packages
+                    if (connDependency.isResolved()){
+                        UtilsInternal.loadAllClasses(
+                                connDependency.getClassLoader(),
+                                serviceConnectionFile.toURI().toURL(),
+                                servicePkgName+".connection"
+                        );
+                    }
+                    UtilsInternal.loadAllClasses(
+                            privateDepsClassLoader,
+                            serviceFile.toURI().toURL(),
+                            servicePkgName
+                    );
+
+                    // create service object
                     final IService<SC> service = (IService<SC>) ctor.newInstance(
                             new ServiceParams(
                                     new ServiceCallback(serviceName, serviceAsTenant),
                                     new ModuleLoader.Builder(
                                             sharedDependencyLord,
-                                            unionClassLoader,
+                                            privateDepsClassLoader,
                                             logger),
                                     serviceType, serviceName,
                                     logger,
@@ -190,8 +198,7 @@ public final class ServiceLoader {
 
                     // fill maps
                     nameServiceMap.put(serviceName, service);
-                    namePrivateDepsCLMap.put(serviceName, privateDepsClassLoader);
-                    nameUnionCLMap.put(serviceName, unionClassLoader);
+                    namePrivateCLMap.put(serviceName, privateDepsClassLoader);
 
                     logger.info("New service created. " + service.toString());
                     return service;
@@ -220,9 +227,8 @@ public final class ServiceLoader {
                 */
                 sharedDependencyLord.releaseSharedDeps(serviceAsTenant);
                 nameServiceMap.remove(serviceName);
-                nameUnionCLMap.remove(serviceName);
                 try {
-                    namePrivateDepsCLMap.remove(serviceName).close();
+                    namePrivateCLMap.remove(serviceName).close();
                 } catch (NullPointerException ignored) {
                 } catch (Throwable throwable){
                     logger.exception(throwable);
@@ -280,8 +286,7 @@ public final class ServiceLoader {
             nameServiceMap.remove(serviceName);
 
             try {
-                nameUnionCLMap.remove(serviceName);
-                namePrivateDepsCLMap.remove(serviceName).close();
+                namePrivateCLMap.remove(serviceName).close();
             } catch (IOException ioException) {
                 logger.exception(ioException, "Failed to close ClassLoader for Service name='" + serviceName + "'");
             }

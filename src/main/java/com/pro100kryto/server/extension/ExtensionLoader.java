@@ -5,7 +5,6 @@ import com.pro100kryto.server.exceptions.ManifestNotFoundException;
 import com.pro100kryto.server.logger.ILogger;
 import com.pro100kryto.server.utils.ResolveDependenciesIncompleteException;
 import com.pro100kryto.server.utils.UtilsInternal;
-import net.bytebuddy.dynamic.loading.MultipleParentClassLoader;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
@@ -28,8 +27,7 @@ public final class ExtensionLoader {
     private final ILogger logger;
 
     private final Map<String, IExtension<?>> typeExtMap = Collections.synchronizedMap(new HashMap<>());
-    private final Map<String, URLClassLoader> typePrivateDepsCLMap = new HashMap<>();
-    private final Map<String, MultipleParentClassLoader> typeUnionCLMap = new HashMap<>();
+    private final Map<String, URLClassLoader> typePrivateCLMap = new HashMap<>();
 
     private final ReentrantLock lock = new ReentrantLock();
 
@@ -66,7 +64,7 @@ public final class ExtensionLoader {
                     "extensions",
                     extType.toLowerCase() + "-extension-connection.jar").toFile();
             if (!extConnectionFile.exists()) {
-                throw new FileNotFoundException(extConnectionFile.getCanonicalPath() + " not found");
+                logger.warn(extConnectionFile.getCanonicalPath() + " not found");
             }
 
             final File extFile = Paths.get(sharedDependencyLord.getCorePath().toString(),
@@ -89,7 +87,7 @@ public final class ExtensionLoader {
                     ResolveDependenciesIncompleteException.Builder incompleteBuilder = new ResolveDependenciesIncompleteException.Builder();
 
                     // resolve
-                    if (!connDependency.isResolved()) {
+                    if (extConnectionFile.exists() && !connDependency.isResolved()) {
                         try {
                             connDependency.resolve();
                             // !! IOException !!
@@ -134,23 +132,15 @@ public final class ExtensionLoader {
                                         }
                                         return null;
                                     }).filter(Objects::nonNull)
-                                    .toArray(),
-                            connDependency.getClassLoader()
+                                    .toArray(URL[]::new),
+                            (connDependency.isResolved() ? connDependency.getClassLoader() : baseClassLoader)
                     );
 
-                    // setup union ClassLoader
-                    final MultipleParentClassLoader unionClassLoader = new MultipleParentClassLoader(
-                            new ArrayList<ClassLoader>(3) {{
-                                add(privateDepsClassLoader); // private deps
-                                add(connDependency.getClassLoader()); // shared + connection
-                                add(baseClassLoader); // parent
-                            }}
-                    );
-
-                    // create ext
+                    // load ext class
+                    final String extPkgName = Constants.BASE_PACKET_NAME + ".extensions." + extType.toLowerCase();
                     final Class<?> extClass = Class.forName(
-                            Constants.BASE_PACKET_NAME + ".modules." + extType + "Module",
-                            true, unionClassLoader
+                            extPkgName + "." + extType + "Extension",
+                            true, privateDepsClassLoader
                     );
                     if (!IExtension.class.isAssignableFrom(extClass)) {
                         throw new IllegalClassFormatException("Is not assignable to IExtension");
@@ -158,6 +148,22 @@ public final class ExtensionLoader {
                     final Constructor<?> ctor = extClass.getConstructor(
                             ExtensionParams.class
                     );
+
+                    // load packages
+                    if (connDependency.isResolved()){
+                        UtilsInternal.loadAllClasses(
+                                connDependency.getClassLoader(),
+                                extConnectionFile.toURI().toURL(),
+                                extPkgName+".connection"
+                        );
+                    }
+                    UtilsInternal.loadAllClasses(
+                            privateDepsClassLoader,
+                            extFile.toURI().toURL(),
+                            extPkgName
+                    );
+
+                    // create ext object
                     final IExtension<EC> extension = (IExtension<EC>) ctor.newInstance(
                             new ExtensionParams(
                                     server,
@@ -169,8 +175,7 @@ public final class ExtensionLoader {
 
                     // fill maps
                     typeExtMap.put(extType, extension);
-                    typePrivateDepsCLMap.put(extType, privateDepsClassLoader);
-                    typeUnionCLMap.put(extType, unionClassLoader);
+                    typePrivateCLMap.put(extType, privateDepsClassLoader);
 
                     logger.info("New extension created. " + extension.toString());
                     return extension;
@@ -187,9 +192,8 @@ public final class ExtensionLoader {
             } finally {
                 sharedDependencyLord.releaseSharedDeps(extAsTenant);
                 typeExtMap.remove(extType);
-                typeUnionCLMap.remove(extType);
                 try {
-                    typePrivateDepsCLMap.remove(extType).close();
+                    typePrivateCLMap.remove(extType).close();
                 } catch (NullPointerException ignored) {
                 }
             }
@@ -225,8 +229,7 @@ public final class ExtensionLoader {
             typeExtMap.remove(extType);
 
             try {
-                typeUnionCLMap.remove(extType);
-                typePrivateDepsCLMap.remove(extType).close();
+                typePrivateCLMap.remove(extType).close();
             } catch (IOException ioException) {
                 logger.exception(ioException, "Failed to close ClassLoader for Extension type='" + extType + "'");
             }
