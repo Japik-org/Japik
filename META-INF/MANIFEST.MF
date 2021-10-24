@@ -1,6 +1,10 @@
 Manifest-Version: 1.0
 Main-Class: com.pro100kryto.server.Starter
-Class-Path: lib/eclipse-collections-11.0.0.M2.jar lib/eclipse-collection
- s-api-11.0.0.M2.jar lib/commons-cli-20040117.000000.jar lib/annotations
- -22.0.0.jar lib/byte-buddy-1.11.20.jar lib/lombok-1.18.22.jar
+Class-Path: lib/byte-buddy-1.11.20.jar lib/jsr305-3.0.2.jar lib/eclipse-
+ collections-api-11.0.0.M2.jar lib/j2objc-annotations-1.3.jar lib/annota
+ tions-22.0.0.jar lib/failureaccess-1.0.1.jar lib/checker-qual-3.12.0.ja
+ r lib/error_prone_annotations-2.7.1.jar lib/guava-31.0.1-jre.jar lib/li
+ stenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar lib/common
+ s-cli-20040117.000000.jar lib/lombok-1.18.22.jar lib/eclipse-collection
+ s-11.0.0.M2.jar
 
