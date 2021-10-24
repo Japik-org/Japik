@@ -126,7 +126,7 @@ public final class SettingsManager implements ISettingsCallback{
                     }
                 }
 
-                settings.setChanged(throwableList == null);
+                settings.setChanged(throwableList != null);
 
                 if (throwableList != null) throw new SettingsApplyIncompleteException(settings, throwableList);
 
