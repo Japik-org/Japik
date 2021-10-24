@@ -1,6 +1,7 @@
 package com.pro100kryto.server.settings;
 
 import com.pro100kryto.server.livecycle.ILiveCycleStatusContainer;
+import com.pro100kryto.server.livecycle.LiveCycleStatusAdvanced;
 import com.pro100kryto.server.logger.ILogger;
 
 import java.util.ArrayList;
@@ -52,16 +53,17 @@ public final class SettingsManager implements ISettingsCallback{
      * @throws IllegalStateException - element not initialized or status is not final
      */
     public void apply() throws SettingsApplyIncompleteException{
-        if (!getStatus().isFinal())
-            throw new IllegalStateException();
 
         SettingListenerEventMask eventMask = SettingListenerEventMask.ON_APPLY;
 
-        if (managerCallback.getLiveCycle().getStatus().isStarted())
+        if (managerCallback.getLiveCycle().getStatus().isStarted()) {
             eventMask = eventMask.append(SettingListenerEventMask.WHEN_STARTED);
+        }
 
-        else if (managerCallback.getLiveCycle().getStatus().isInitialized())
+        else if (managerCallback.getLiveCycle().getStatus().isInitialized()
+                || managerCallback.getLiveCycle().getStatus().is(LiveCycleStatusAdvanced.INITIALIZING)) {
             eventMask = eventMask.append(SettingListenerEventMask.WHEN_INITIALIZED);
+        }
 
         else throw new IllegalStateException();
 
