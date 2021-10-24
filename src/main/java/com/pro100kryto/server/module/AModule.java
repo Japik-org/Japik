@@ -33,21 +33,16 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
 
         // live cycle
         // 3
-        liveCycleController = new LiveCycleController(
-                this.logger,
-                "Module name='"+name+"'",
-                getDefaultLiveCycleImpl()// 4
-        );
+        liveCycleController = new LiveCycleController.Builder()
+                .setDefaultImpl(getDefaultLiveCycleImpl()) // 4
+                .build(logger, "Module name='"+name+"'");
 
         // 1
-        liveCycleControllerInternal = new LiveCycleController(
-                this.logger,
-                "Module (internal) name='"+name+"'",
-                new LiveCycleInternalImpl()// 2
-        );
+        liveCycleControllerInternal = new LiveCycleController.Builder()
+                .setDefaultImpl(new LiveCycleInternalImpl()) // 2
+                .build(logger, "Module (internal) name='"+name+"'");
 
         // settings
-
         settingsManager = new SettingsManager(this, logger);
         baseSettings = new BaseModuleSettings(settingsManager.getSettings());
     }

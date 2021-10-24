@@ -53,7 +53,9 @@ public final class Server{
         this.workingPath = workingPath;
         this.parentClassLoader = this.getClass().getClassLoader();
         final ServerLiveCycleImpl serverLiveCycle = new ServerLiveCycleImpl(this);
-        liveCycleController = new LiveCycleController(LoggerSystemOut.instance, "Server", serverLiveCycle);
+        liveCycleController = new LiveCycleController.Builder()
+                .setDefaultImpl(serverLiveCycle)
+                .build(LoggerSystemOut.instance, "Server");
 
         mainLogger = LoggerSystemOut.instance;
         liveCycleController.setLogger(mainLogger);

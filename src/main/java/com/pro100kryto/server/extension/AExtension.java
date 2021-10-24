@@ -35,18 +35,14 @@ public abstract class AExtension <EC extends IExtensionConnection> implements IE
 
         // live cycle
         // 3
-        liveCycleController = new LiveCycleController(
-                this.logger,
-                "Extension type='"+type+"'",
-                getDefaultLiveCycleImpl()// 4
-        );
+        liveCycleController = new LiveCycleController.Builder()
+                .setDefaultImpl(getDefaultLiveCycleImpl())
+                .build(logger, "Extension type='"+type+"'");
 
         // 1
-        liveCycleControllerInternal = new LiveCycleController(
-                this.logger,
-                "Extension (internal) type='"+type+"'",
-                new LiveCycleInternalImpl()// 2
-        );
+        liveCycleControllerInternal = new LiveCycleController.Builder()
+                .setDefaultImpl(new LiveCycleInternalImpl())
+                .build(logger, "Extension (internal) type='"+type+"'");
 
         // settings
         settingsManager = new SettingsManager(this, logger);

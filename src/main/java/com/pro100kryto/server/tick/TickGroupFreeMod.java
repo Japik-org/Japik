@@ -17,7 +17,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -33,8 +32,8 @@ public final class TickGroupFreeMod extends ATickGroup {
 
     public TickGroupFreeMod(ITickGroupCallback tickGroupCallback,
                             long id, Tenant tenant, ILogger logger,
-                            @NonNull ReentrantLock liveCycleLock,
-                            BaseSettings baseSettings) {
+                            BaseSettings baseSettings,
+                            @Nullable ReentrantLock liveCycleLock) {
         super(tickGroupCallback, id, tenant, logger, liveCycleLock);
         this.baseSettings = baseSettings;
     }
@@ -238,8 +237,8 @@ public final class TickGroupFreeMod extends ATickGroup {
                     id,
                     tenant,
                     logger,
-                    (liveCycleLock != null ? liveCycleLock : new ReentrantLock()),
-                    baseSettings
+                    baseSettings,
+                    liveCycleLock
             );
         }
     }

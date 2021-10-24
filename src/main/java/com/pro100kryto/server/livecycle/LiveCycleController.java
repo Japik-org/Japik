@@ -2,6 +2,8 @@ package com.pro100kryto.server.livecycle;
 
 import com.pro100kryto.server.exceptions.NotImplementedException;
 import com.pro100kryto.server.logger.ILogger;
+import lombok.Setter;
+import lombok.experimental.Accessors;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -32,19 +34,30 @@ public final class LiveCycleController implements ILiveCycle {
 
     private boolean isEnabledAutoFixBroken = false;
 
-    /**
-     * @throws NullPointerException
-     */
-    public LiveCycleController(ILogger logger, String elementName) {
-        this(logger, elementName, EmptyLiveCycleImpl.instance);
-    }
+    @Setter
+    @Accessors(chain = true)
+    public static final class Builder {
+        private ILiveCycleImpl defaultImpl;
+        private ReentrantLock lock;
 
-    /**
-     * @throws NullPointerException
-     */
-    public LiveCycleController(ILogger logger, String elementName,
-                               ILiveCycleImpl defaultImpl) {
-        this(logger, elementName, defaultImpl, new ReentrantLock());
+        private void initMissingValues(){
+            if (defaultImpl == null){
+                defaultImpl = EmptyLiveCycleImpl.instance;
+            }
+            if (lock == null){
+                lock = new ReentrantLock();
+            }
+        }
+
+        public LiveCycleController build(ILogger logger, String elementName){
+            initMissingValues();
+            return new LiveCycleController(
+                    logger,
+                    elementName,
+                    defaultImpl,
+                    lock
+            );
+        }
     }
 
     /**

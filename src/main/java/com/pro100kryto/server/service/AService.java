@@ -36,24 +36,18 @@ public abstract class AService <SC extends IServiceConnection> implements IServi
 
         // LiveCycle
         // 3
-        liveCycleController = new LiveCycleController(
-                this.logger,
-                "Service name='"+this.name+"'",
-                getDefaultLiveCycleImpl()// 4
-        );
+        liveCycleController = new LiveCycleController.Builder()
+                .setDefaultImpl(getDefaultLiveCycleImpl()) // 4
+                .build(logger, "Service name='"+name+"'");
 
         // 1
-        liveCycleControllerInternal = new LiveCycleController(
-                this.logger,
-                "Service (internal liveCycle) name='"+this.name+"'",
-                new LiveCycleInternalImpl()// 2
-        );
+        liveCycleControllerInternal = new LiveCycleController.Builder()
+                .setDefaultImpl(new LiveCycleInternalImpl()) // 2
+                .build(logger, "Service (internal) name='"+name+"'");
 
         // settings
         settingsManager = new SettingsManager(this, logger);
         baseSettings = new BaseServiceSettings(settingsManager.getSettings());
-
-        // ----
     }
 
     @Override

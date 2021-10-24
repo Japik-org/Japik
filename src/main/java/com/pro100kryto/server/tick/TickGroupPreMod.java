@@ -19,7 +19,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class TickGroupPreMod extends ATickGroup {
-
     @Getter
     private BaseSettings baseSettings;
 
@@ -31,8 +30,8 @@ public class TickGroupPreMod extends ATickGroup {
 
     protected TickGroupPreMod(ITickGroupCallback tickGroupCallback,
                            long id, Tenant tenant, ILogger logger,
-                           @NonNull ReentrantLock liveCycleLock,
-                           BaseSettings baseSettings) {
+                           BaseSettings baseSettings,
+                           @Nullable ReentrantLock liveCycleLock) {
         super(tickGroupCallback, id, tenant, logger, liveCycleLock);
         this.baseSettings = baseSettings;
     }
@@ -235,8 +234,8 @@ public class TickGroupPreMod extends ATickGroup {
                     id,
                     tenant,
                     logger,
-                    (liveCycleLock != null ? liveCycleLock : new ReentrantLock()),
-                    baseSettings
+                    baseSettings,
+                    liveCycleLock
             );
         }
     }
