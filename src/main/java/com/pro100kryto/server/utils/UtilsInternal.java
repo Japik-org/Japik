@@ -1,10 +1,13 @@
 package com.pro100kryto.server.utils;
 
+import com.google.common.reflect.ClassPath;
 import com.pro100kryto.server.exceptions.ManifestNotFoundException;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -128,5 +131,23 @@ public class UtilsInternal {
             if (attrValue.isEmpty()) continue;
             consumer.accept(attrValue);
         }
+    }
+
+    public static void loadAllClasses(ClassLoader classLoader, URL jarFileURL, String packageName)
+            throws IOException {
+
+        final URLClassLoader tempCL = new URLClassLoader(new URL[]{jarFileURL}, null);
+        tempCL.close();
+
+        ClassPath.from(tempCL)
+                .getAllClasses()
+                .stream()
+                .filter(clazz -> clazz.getPackageName().equalsIgnoreCase(packageName))
+                .forEach(classInfo -> {
+                    try {
+                        classLoader.loadClass(classInfo.getName());
+                    } catch (ClassNotFoundException ignored) {
+                    }
+                });
     }
 }
