@@ -97,6 +97,7 @@ public final class Server implements ISettingsManagerCallback {
             );
             extensionLoader = new ExtensionLoader(server, sharedDependencyLord, serverClassLoader, mainLogger);
 
+            settingsManager.setLogger(mainLogger);
             settingsManager.setListener(new SettingListenerContainer(
                     BaseServerSettings.KEY_AUTO_FIX_BROKEN_ENABLE,
                     new BooleanSettingListener() {

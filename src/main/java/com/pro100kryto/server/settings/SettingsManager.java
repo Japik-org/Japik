@@ -3,13 +3,15 @@ package com.pro100kryto.server.settings;
 import com.pro100kryto.server.livecycle.ILiveCycleStatusContainer;
 import com.pro100kryto.server.livecycle.LiveCycleStatusAdvanced;
 import com.pro100kryto.server.logger.ILogger;
+import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 
 public final class SettingsManager implements ISettingsCallback{
     private final ISettingsManagerCallback managerCallback;
-    private final ILogger logger;
+    @Setter
+    private ILogger logger;
     private final Settings settings;
     private final HashMap<String, SettingListenerContainer> keyListenerMap;
     private ICommonSettingsListener commonListener = null;
