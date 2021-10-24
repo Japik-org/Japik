@@ -106,10 +106,15 @@ public class TickGroupPreMod extends ATickGroup {
 
     @Override
     protected ILiveCycleImpl getDefaultLiveCycleImpl() {
-        return new LiveCycleImpl();
+        return new LiveCycleImpl(this);
     }
 
     private final class LiveCycleImpl implements ILiveCycleImpl {
+        private final TickGroupPreMod tickGroupPreMod;
+
+        private LiveCycleImpl(TickGroupPreMod tickGroupPreMod) {
+            this.tickGroupPreMod = tickGroupPreMod;
+        }
 
         @Override
         public void init() throws SettingsApplyIncompleteException {
@@ -127,7 +132,7 @@ public class TickGroupPreMod extends ATickGroup {
 
         @Override
         public void start() {
-            thread = new TickGroupThread();
+            thread = new TickGroupThread(tickGroupPreMod);
             thread.start();
         }
 
@@ -166,32 +171,33 @@ public class TickGroupPreMod extends ATickGroup {
     }
 
     // thread
+    private static final class TickGroupThread extends Thread{
+        private final TickGroupPreMod tickGroupPreMod;
 
-    private final class TickGroupThread extends Thread{
-
-        public TickGroupThread() {
+        public TickGroupThread(TickGroupPreMod tickGroupPreMod) {
             super(() -> {
                 try {
-                    final Tick[] tickArr = tickStartedList.toArray(new Tick[0]);
+                    final Tick[] tickArr = tickGroupPreMod.tickStartedList.toArray(new Tick[0]);
                     final int tickArrLen = tickArr.length;
 
-                    while (!liveCycleController.getStatus().isStopAnnounced()) {
-                        Thread.sleep(baseSettings.getSleepBeforeTicks());
+                    while (!tickGroupPreMod.liveCycleController.getStatus().isStopAnnounced()) {
+                        Thread.sleep(tickGroupPreMod.baseSettings.getSleepBeforeTicks());
                         for (int i = 0; i < tickArrLen; i++) {
                             final Tick tick = tickArr[i];
                             tick.tick();
-                            Thread.sleep(baseSettings.getSleepBetweenTicks());
+                            Thread.sleep(tickGroupPreMod.baseSettings.getSleepBetweenTicks());
                         }
                     }
                 } catch (Throwable throwable){
-                    logger.exception(throwable,"TickGroup thread exception");
+                    tickGroupPreMod.logger.exception(throwable,"TickGroup thread exception");
                     try {
-                        liveCycleController.stopForce();
+                        tickGroupPreMod.liveCycleController.stopForce();
                     } catch (IllegalStateException illegalStateException){
-                        logger.exception(illegalStateException, "stopForce() failed after TickGroup thread crash");
+                        tickGroupPreMod.logger.exception(illegalStateException, "stopForce() failed after TickGroup thread crash");
                     }
                 }
             });
+            this.tickGroupPreMod = tickGroupPreMod;
         }
     }
 
