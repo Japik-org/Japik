@@ -6,24 +6,19 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
 
-public abstract class AServiceConnection <S extends IService<SC>, SC extends IServiceConnection> implements IServiceConnection{
+public abstract class AServiceConnection<S extends IService<SC>, SC extends IServiceConnection> implements IServiceConnection{
     @Nullable
     private S service;
     protected final ILogger logger;
-    protected final String serviceType;
     protected final String serviceName;
-    protected boolean isClosed = false;
+    protected final String serviceType;
+    private boolean isClosed = false;
 
-    public AServiceConnection(@NotNull S service, ILogger logger, String serviceType, String serviceName) {
+    public AServiceConnection(@NotNull S service, ILogger logger) {
         this.service = Objects.requireNonNull(service);
         this.logger = Objects.requireNonNull(logger);
-        this.serviceType = serviceType;
-        this.serviceName = serviceName;
-    }
-
-    @Override
-    public final String getServiceType() {
-        return serviceType;
+        this.serviceName = service.getName();
+        this.serviceType = service.getType();
     }
 
     @Override
@@ -32,19 +27,15 @@ public abstract class AServiceConnection <S extends IService<SC>, SC extends ISe
     }
 
     @Override
-    public boolean ping() {
-        return true;
+    public final String getServiceType() {
+        return serviceType;
     }
 
     @Override
-    public boolean isAliveService() {
-        if (isClosed) throw new IllegalStateException();
-        return service.getLiveCycle().getStatus().isStarted();
-    }
-
-    @Override
-    public final void close() {
-        if (isClosed) throw new IllegalStateException();
+    public synchronized final void close() {
+        if (isClosed) {
+            throw new IllegalStateException();
+        }
         isClosed = true;
         onClose();
         service = null;
@@ -55,10 +46,26 @@ public abstract class AServiceConnection <S extends IService<SC>, SC extends ISe
         return isClosed;
     }
 
-    protected abstract void onClose();
-
     @Nullable
-    protected S getService(){
+    protected final S getService(){
         return service;
     }
+
+    // virtual
+
+    @Override
+    public synchronized boolean isAliveService() {
+        if (isClosed){
+            throw new IllegalStateException();
+        }
+        return service.getLiveCycle().getStatus().isStarted();
+    }
+
+    @Override
+    public boolean ping() {
+        return true;
+    }
+
+    protected void onClose(){}
+
 }

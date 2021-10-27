@@ -6,7 +6,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
 
-public abstract class AModuleConnectionImpl<M extends IModule<MC>, MC extends IModuleConnection> implements IModuleConnection {
+public abstract class AModuleConnection<M extends IModule<MC>, MC extends IModuleConnection> implements IModuleConnection {
     @Nullable
     private M module;
     protected final ILogger logger;
@@ -15,7 +15,7 @@ public abstract class AModuleConnectionImpl<M extends IModule<MC>, MC extends IM
     protected boolean isClosed = false;
 
 
-    public AModuleConnectionImpl(@NotNull M module, ILogger logger) {
+    public AModuleConnection(@NotNull M module, ILogger logger) {
         this.module = Objects.requireNonNull(module);
         this.logger = Objects.requireNonNull(logger);
         this.moduleType = module.getType();
@@ -68,4 +68,5 @@ public abstract class AModuleConnectionImpl<M extends IModule<MC>, MC extends IM
     }
 
     protected void onClose(){}
+
 }
