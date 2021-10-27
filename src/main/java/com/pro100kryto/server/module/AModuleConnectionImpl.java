@@ -33,19 +33,6 @@ public abstract class AModuleConnectionImpl<M extends IModule<MC>, MC extends IM
     }
 
     @Override
-    public boolean ping() {
-        return true;
-    }
-
-    @Override
-    public synchronized boolean isAliveModule() {
-        if (isClosed) {
-            throw new IllegalStateException();
-        }
-        return module.getLiveCycle().getStatus().isStarted();
-    }
-
-    @Override
     public synchronized final void close(){
         if (isClosed) {
             throw new IllegalStateException();
@@ -60,9 +47,25 @@ public abstract class AModuleConnectionImpl<M extends IModule<MC>, MC extends IM
         return isClosed;
     }
 
-    protected abstract void onClose();
-
+    @Nullable
     protected final M getModule(){
         return module;
     }
+
+    // virtual
+
+    @Override
+    public synchronized boolean isAliveModule() {
+        if (isClosed) {
+            throw new IllegalStateException();
+        }
+        return module.getLiveCycle().getStatus().isStarted();
+    }
+
+    @Override
+    public boolean ping() {
+        return true;
+    }
+
+    protected void onClose(){}
 }
