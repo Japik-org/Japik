@@ -20,11 +20,11 @@ public class Settings {
         this.callback = Objects.requireNonNull(callback);;
     }
 
-    void apply() throws SettingsApplyIncompleteException {
+    public void apply() throws SettingsApplyIncompleteException {
         callback.apply();
     }
 
-    boolean applyIfChanged() throws SettingsApplyIncompleteException {
+    public boolean applyIfChanged() throws SettingsApplyIncompleteException {
         return callback.applyIfChanged();
     }
 
