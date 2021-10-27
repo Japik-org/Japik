@@ -132,7 +132,7 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
     // LiveCycle
 
     @Override
-    public ILiveCycle getLiveCycle() {
+    public final ILiveCycle getLiveCycle() {
         return liveCycleControllerInternal;
     }
 
