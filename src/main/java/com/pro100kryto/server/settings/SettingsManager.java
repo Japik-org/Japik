@@ -85,20 +85,25 @@ public final class SettingsManager implements ISettingsCallback{
                         final SettingListenerContainer listenerContainer = keyListenerMap.get(key);
                         if (!listenerContainer.getEventMask().containsComplete(eventMaskParts1And2)) continue;
 
-                        if (settings.containsKey(key)) {
-                            SettingListenerEventMask eventMask;
-                            if (settings.isChanged(key)) {
-                                eventMask = eventMaskParts1And2.append(SettingListenerEventMask.IS_CHANGED);
+                        if (!settings.containsKey(key)){
+                            if (listenerContainer.getDefaultValue() != null){
+                                settings.put(key, listenerContainer.getDefaultValue());
                             } else {
-                                eventMask = eventMaskParts1And2.append(SettingListenerEventMask.IS_NOT_CHANGED);
+                                if (listenerContainer.isOptional()) continue;
+                                throw new MissingSettingException(settings, key);
                             }
-                            if (!listenerContainer.getEventMask().containsComplete(eventMask)) continue;
-                            listenerContainer.getListener().apply(key, settings.get(key), eventMask);
-
-                        } else {
-                            if (listenerContainer.isOptional()) continue;
-                            throw new MissingSettingException(settings, key);
                         }
+
+                        final SettingListenerEventMask eventMask;
+                        if (settings.isChanged(key)) {
+                            eventMask = eventMaskParts1And2.append(SettingListenerEventMask.IS_CHANGED);
+                        } else {
+                            eventMask = eventMaskParts1And2.append(SettingListenerEventMask.IS_NOT_CHANGED);
+                        }
+                        if (!listenerContainer.getEventMask().containsComplete(eventMask)) continue;
+                        listenerContainer.getListener().apply(key, settings.get(key), eventMask);
+
+                        settings.setChanged(key, false);
 
                     } catch (Throwable throwable) {
                         logger.exception(throwable, "Failed apply key = " + key);

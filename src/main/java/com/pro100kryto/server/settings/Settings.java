@@ -127,6 +127,16 @@ public class Settings {
         }
     }
 
+    public void setChanged(String key, boolean changed) {
+        locker.lock();
+        try {
+            map.get(key).setChanged(changed);
+
+        } finally {
+            locker.unlock();
+        }
+    }
+
     public void setChanged(boolean changed) {
         locker.lock();
         try {
