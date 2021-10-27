@@ -22,6 +22,7 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
     private final LiveCycleController liveCycleController, liveCycleControllerInternal;
 
     protected final SettingsManager settingsManager;
+    protected final Settings settings;
     protected final BaseModuleSettings baseSettings;
 
     public AModule(ModuleParams moduleParams){
@@ -44,6 +45,7 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
 
         // settings
         settingsManager = new SettingsManager(this, logger);
+        settings = settingsManager.getSettings();
         baseSettings = new BaseModuleSettings(settingsManager.getSettings());
     }
 
