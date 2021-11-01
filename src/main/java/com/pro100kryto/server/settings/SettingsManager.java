@@ -3,23 +3,35 @@ package com.pro100kryto.server.settings;
 import com.pro100kryto.server.livecycle.ILiveCycleStatusContainer;
 import com.pro100kryto.server.livecycle.LiveCycleStatusAdvanced;
 import com.pro100kryto.server.logger.ILogger;
+import lombok.NonNull;
 import lombok.Setter;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Objects;
 
 public final class SettingsManager implements ISettingsCallback{
-    private final ISettingsManagerCallback managerCallback;
-    @Setter
-    private ILogger logger;
     private final Settings settings;
+    private final ISettingsManagerCallback managerCallback;
+    @Setter @NonNull
+    private ILogger logger;
     private final HashMap<String, SettingListenerContainer> keyListenerMap;
+    @Nullable
     private ICommonSettingsListener commonListener = null;
 
     public SettingsManager(ISettingsManagerCallback managerCallback, ILogger logger) {
-        this.managerCallback = managerCallback;
-        this.logger = logger;
         settings = new Settings(this);
+        this.managerCallback = Objects.requireNonNull(managerCallback);
+        this.logger = Objects.requireNonNull(logger);
+        keyListenerMap = new HashMap<>(0);
+    }
+
+    public SettingsManager(Settings settings, ISettingsManagerCallback managerCallback, ILogger logger) {
+        this.settings = Objects.requireNonNull(settings);
+        settings.setCallback(this);
+        this.managerCallback = Objects.requireNonNull(managerCallback);
+        this.logger = Objects.requireNonNull(logger);
         keyListenerMap = new HashMap<>(0);
     }
 
@@ -174,8 +186,7 @@ public final class SettingsManager implements ISettingsCallback{
         apply(eventMask);
     }
 
-    @Override
-    public ILiveCycleStatusContainer getStatus() {
+    private ILiveCycleStatusContainer getStatus() {
         return managerCallback.getLiveCycle().getStatus();
     }
 

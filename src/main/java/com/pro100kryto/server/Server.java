@@ -41,6 +41,8 @@ public final class Server implements ISettingsManagerCallback {
     @Getter @Nullable
     private ExtensionLoader extensionLoader;
     @Getter
+    private final Settings settings;
+    @Getter
     private final SettingsManager settingsManager;
     @Nullable
     private URLClassLoader serverClassLoader;
@@ -57,7 +59,8 @@ public final class Server implements ISettingsManagerCallback {
         mainLogger = LoggerSystemOut.instance;
         liveCycleController.setLogger(mainLogger);
 
-        settingsManager = new SettingsManager(this, mainLogger);
+        settings = new Settings();
+        settingsManager = new SettingsManager(settings, this, mainLogger);
 
         projectProperties = new ProjectProperties();
         projectProperties.load(ClassLoader.getSystemClassLoader().getResourceAsStream("project.properties"));

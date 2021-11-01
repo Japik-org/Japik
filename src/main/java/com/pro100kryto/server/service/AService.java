@@ -23,6 +23,7 @@ public abstract class AService <SC extends IServiceConnection> implements IServi
 
     private final LiveCycleController liveCycleController, liveCycleControllerInternal;
 
+    protected final Settings settings;
     protected final SettingsManager settingsManager;
     protected final BaseServiceSettings baseSettings;
 
@@ -46,7 +47,8 @@ public abstract class AService <SC extends IServiceConnection> implements IServi
                 .build(logger, "Service (internal) name='"+name+"'");
 
         // settings
-        settingsManager = new SettingsManager(this, logger);
+        settings = new Settings();
+        settingsManager = new SettingsManager(settings, this, logger);
         baseSettings = new BaseServiceSettings(settingsManager.getSettings());
     }
 

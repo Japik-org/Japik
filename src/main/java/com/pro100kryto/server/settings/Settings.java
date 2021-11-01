@@ -1,23 +1,31 @@
 package com.pro100kryto.server.settings;
 
+import lombok.Setter;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.HashMap;
 import java.util.Objects;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class Settings {
     protected final HashMap<String, SettingContainer> map;
-    protected final ISettingsCallback callback;
+    @Setter @Nullable
+    protected ISettingsCallback callback = null;
     private final ReentrantLock locker = new ReentrantLock();
     protected boolean changed = true;
 
-    public Settings(int initialCapacity, ISettingsCallback callback) {
+    public Settings(int initialCapacity, @Nullable ISettingsCallback callback) {
         map = new HashMap<>(initialCapacity);
-        this.callback = Objects.requireNonNull(callback);
+        this.callback = callback;
     }
 
     public Settings(ISettingsCallback callback) {
         map = new HashMap<>();
         this.callback = Objects.requireNonNull(callback);;
+    }
+
+    public Settings() {
+        map = new HashMap<>();
     }
 
     public void apply() throws SettingsApplyIncompleteException {
