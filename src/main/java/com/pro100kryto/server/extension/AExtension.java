@@ -25,6 +25,7 @@ public abstract class AExtension <EC extends IExtensionConnection> implements IE
 
     private final LiveCycleController liveCycleController, liveCycleControllerInternal;
 
+    protected final Settings settings;
     protected final SettingsManager settingsManager;
 
     public AExtension(ExtensionParams extensionParams) {
@@ -45,7 +46,8 @@ public abstract class AExtension <EC extends IExtensionConnection> implements IE
                 .build(logger, "Extension (internal) type='"+type+"'");
 
         // settings
-        settingsManager = new SettingsManager(this, logger);
+        settings = new Settings();
+        settingsManager = new SettingsManager(settings, this, logger);
     }
 
     @Override
