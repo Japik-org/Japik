@@ -150,4 +150,14 @@ public class UtilsInternal {
                     }
                 });
     }
+
+    public static String getJarAttrVal(JarFile jarFile, String attrName) throws IOException, ManifestNotFoundException {
+        final Manifest manifest = jarFile.getManifest();
+        if (manifest == null) { // manifest does not exist
+            throw new ManifestNotFoundException(jarFile);
+        }
+        final Attributes attributes = manifest.getMainAttributes();
+
+        return attributes.getValue(attrName);
+    }
 }

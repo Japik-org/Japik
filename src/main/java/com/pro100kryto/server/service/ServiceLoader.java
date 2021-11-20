@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.jar.JarFile;
 
 public final class ServiceLoader {
     private final Server server;
@@ -157,7 +158,26 @@ public final class ServiceLoader {
                      */
 
                     // load service class
-                    final String servicePkgName = Constants.BASE_PACKET_NAME + ".services." + serviceType.toLowerCase();
+                    final String servicePkgName;
+                    {
+                        String pkgName;
+                        try {
+                            pkgName = UtilsInternal.getJarAttrVal(new JarFile(serviceFile), "Base-Package");
+                        } catch (Throwable throwable) {
+                            pkgName = Constants.BASE_PACKET_NAME;
+                        }
+                        servicePkgName = pkgName + ".services." + serviceType.toLowerCase();
+                    }
+                    final String serviceConnPkgName;
+                    {
+                        String pkgName;
+                        try {
+                            pkgName = UtilsInternal.getJarAttrVal(new JarFile(serviceConnectionFile), "Base-Package");
+                        } catch (Throwable throwable) {
+                            pkgName = Constants.BASE_PACKET_NAME;
+                        }
+                        serviceConnPkgName = pkgName + ".services." + serviceType.toLowerCase()+".connection";
+                    }
                     final Class<?> serviceClass = Class.forName(
                             servicePkgName + "." + serviceType + "Service",
                             true, privateDepsClassLoader
@@ -173,7 +193,7 @@ public final class ServiceLoader {
                         UtilsInternal.loadAllClasses(
                                 connDependency.getClassLoader(),
                                 serviceConnectionFile.toURI().toURL(),
-                                servicePkgName+".connection"
+                                serviceConnPkgName
                         );
                     }
                     UtilsInternal.loadAllClasses(
