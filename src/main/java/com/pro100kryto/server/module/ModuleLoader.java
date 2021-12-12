@@ -90,7 +90,7 @@ public final class ModuleLoader {
             // try resolve or release
             try {
                 try {
-                    ResolveDependenciesIncompleteException.Builder incompleteBuilder = new ResolveDependenciesIncompleteException.Builder();
+                    final ResolveDependenciesIncompleteException.Builder incompleteBuilder = new ResolveDependenciesIncompleteException.Builder();
 
                     // resolve
                     if (moduleConnectionFile.exists() && !connDependency.isResolved()) {
@@ -156,18 +156,21 @@ public final class ModuleLoader {
                     );
 
                     // load packages
-                    if (connDependency.isResolved()){
-                        UtilsInternal.loadAllClasses(
-                                connDependency.getClassLoader(),
-                                moduleConnectionFile.toURI().toURL(),
-                                modulePkgName+".connection"
-                        );
-                    }
                     UtilsInternal.loadAllClasses(
                             privateDepsClassLoader,
                             moduleFile.toURI().toURL(),
                             modulePkgName
                     );
+                    privateClassPathList
+                            .forEach((path -> {
+                                try {
+                                    UtilsInternal.loadAllClasses(
+                                            privateDepsClassLoader,
+                                            path.toUri().toURL()
+                                    );
+                                } catch (IOException ignored) {
+                                }
+                            }));
 
                     // create module object
                     final IModule<MC> module = (IModule<MC>) ctor.newInstance(
@@ -201,6 +204,8 @@ public final class ModuleLoader {
                 try {
                     namePrivateCLMap.remove(moduleName).close();
                 } catch (NullPointerException ignored) {
+                } catch (Throwable throwable2){
+                    logger.exception(throwable2);
                 }
                 throw throwable;
             }

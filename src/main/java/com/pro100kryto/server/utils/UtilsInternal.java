@@ -64,13 +64,7 @@ public class UtilsInternal {
 
         UtilsInternal.iterateAttributeValues(attributes, "Connect-Libs", (value) -> {
             try {
-                readClassPathRecursivelyPrivate(
-                        Paths.get(corePath.toString(), "libs", value.toLowerCase()).toFile(),
-                        corePath, pathsOut, true,
-                        incompleteBuilder
-                );
-            } catch (ManifestNotFoundException | FileNotFoundException warningException){
-                incompleteBuilder.addWarning(warningException);
+                pathsOut.add(Paths.get(corePath.toString(), "libs", value.toLowerCase()));
 
             } catch (Throwable throwable) {
                 incompleteBuilder.addError(throwable);
@@ -133,7 +127,22 @@ public class UtilsInternal {
         }
     }
 
-    public static void loadAllClasses(ClassLoader classLoader, URL jarFileURL, String packageName)
+    public static void loadAllClasses(ClassLoader classLoader, URL jarFileURL) throws IOException {
+        final URLClassLoader tempCL = new URLClassLoader(new URL[]{jarFileURL}, null);
+        tempCL.close();
+
+        ClassPath.from(tempCL)
+                .getAllClasses()
+                .stream()
+                .forEach(classInfo -> {
+                    try {
+                        classLoader.loadClass(classInfo.getName());
+                    } catch (ClassNotFoundException ignored) {
+                    }
+                });
+    }
+
+    public static void loadAllClasses(ClassLoader classLoader, URL jarFileURL, String basePackage)
             throws IOException {
 
         final URLClassLoader tempCL = new URLClassLoader(new URL[]{jarFileURL}, null);
@@ -142,7 +151,7 @@ public class UtilsInternal {
         ClassPath.from(tempCL)
                 .getAllClasses()
                 .stream()
-                .filter(clazz -> clazz.getPackageName().equalsIgnoreCase(packageName))
+                .filter(clazz -> clazz.getPackageName().equalsIgnoreCase(basePackage))
                 .forEach(classInfo -> {
                     try {
                         classLoader.loadClass(classInfo.getName());

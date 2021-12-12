@@ -168,6 +168,7 @@ public final class ServiceLoader {
                         }
                         servicePkgName = pkgName + ".services." + serviceType.toLowerCase();
                     }
+                    /*
                     final String serviceConnPkgName;
                     {
                         String pkgName;
@@ -178,6 +179,7 @@ public final class ServiceLoader {
                         }
                         serviceConnPkgName = pkgName + ".services." + serviceType.toLowerCase()+".connection";
                     }
+                    */
                     final Class<?> serviceClass = Class.forName(
                             servicePkgName + "." + serviceType + "Service",
                             true, privateDepsClassLoader
@@ -189,18 +191,22 @@ public final class ServiceLoader {
                     );
 
                     // load packages
-                    if (connDependency.isResolved()){
-                        UtilsInternal.loadAllClasses(
-                                connDependency.getClassLoader(),
-                                serviceConnectionFile.toURI().toURL(),
-                                serviceConnPkgName
-                        );
-                    }
                     UtilsInternal.loadAllClasses(
                             privateDepsClassLoader,
                             serviceFile.toURI().toURL(),
                             servicePkgName
                     );
+
+                    privateClassPathList
+                            .forEach((path -> {
+                                try {
+                                    UtilsInternal.loadAllClasses(
+                                            privateDepsClassLoader,
+                                            path.toUri().toURL()
+                                    );
+                                } catch (IOException ignored) {
+                                }
+                            }));
 
                     // create service object
                     final IService<SC> service = (IService<SC>) ctor.newInstance(
@@ -232,7 +238,7 @@ public final class ServiceLoader {
                     throw new IllegalServiceFormatException(formatException);
                 }
 
-            } finally {
+            } catch (Throwable throwable){
                 /*
                 final ThreadGroup serviceThreadGroup = nameThreadGroupMap.remove(serviceName);
                 if (serviceThreadGroup != null) {
@@ -250,9 +256,11 @@ public final class ServiceLoader {
                 try {
                     namePrivateCLMap.remove(serviceName).close();
                 } catch (NullPointerException ignored) {
-                } catch (Throwable throwable){
-                    logger.exception(throwable);
+                } catch (Throwable throwable2){
+                    logger.exception(throwable2);
                 }
+
+                throw throwable;
             }
 
         } finally {

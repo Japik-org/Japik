@@ -1,6 +1,7 @@
 package com.pro100kryto.server;
 
 import com.pro100kryto.server.exceptions.ManifestNotFoundException;
+import com.pro100kryto.server.utils.EmptyClassLoader;
 import com.pro100kryto.server.utils.ResolveDependenciesIncompleteException;
 import com.pro100kryto.server.utils.TransformedUnmodifiableList;
 import com.pro100kryto.server.utils.UtilsInternal;
@@ -23,6 +24,7 @@ public final class SharedDependency {
     private final SharedDependencyLord sharedDependencyLord;
     private final Tenant tenant;
     private final File file;
+    private final String basePackage;
     private URLClassLoader fileClassLoader;
     private List<SharedDependency> dependencyList;
     private MultipleParentClassLoader unionClassLoader;
@@ -35,9 +37,20 @@ public final class SharedDependency {
      * @throws NullPointerException
      */
     public SharedDependency(SharedDependencyLord sharedDependencyLord, File file) {
+        this(sharedDependencyLord, file, null);
+    }
+
+    /**
+     * @param sharedDependencyLord
+     * @param file dependency file for load classes
+     * @throws InvalidPathException invalid path for file
+     * @throws NullPointerException
+     */
+    public SharedDependency(SharedDependencyLord sharedDependencyLord, File file, String basePackage) {
         this.sharedDependencyLord = sharedDependencyLord;
         tenant = new Tenant(file.getAbsolutePath());
         this.file = file;
+        this.basePackage = basePackage;
     }
 
     /**
@@ -71,28 +84,38 @@ public final class SharedDependency {
 
                 // dependencies
                 if (dependencyList == null) {
-                    final ArrayList<Path> depPaths = new ArrayList<>();
 
                     try {
+                        final ArrayList<Path> depPaths = new ArrayList<>();
+
+                        // !! IOException !!
                         UtilsInternal.readClassPathRecursively(file, sharedDependencyLord.getCorePath(), depPaths, false);
+
+                        dependencyList = new ArrayList<>(depPaths.size());
+                        for (final Path depPath : depPaths) {
+                            dependencyList.add(sharedDependencyLord.rentSharedDep(tenant, depPath));
+                        }
 
                     } catch (ResolveDependenciesIncompleteException incompleteException){
                         incompleteBuilder.addCause(incompleteException);
-                    }
-                    // !! IOException | ManifestNotFoundException !!
 
-                    final ArrayList<SharedDependency> depList = new ArrayList<>(depPaths.size() + 1);
-                    for (final Path depPath : depPaths) {
-                        depList.add(sharedDependencyLord.rentSharedDep(tenant, depPath));
+                    } catch (ManifestNotFoundException ignored){
                     }
-                    dependencyList = depList;
+
+                    if (dependencyList == null){
+                        dependencyList = new ArrayList<>(0);
+                    }
                 }
 
                 // Result ClassLoader
                 if (unionClassLoader == null) {
                     unionClassLoader = new MultipleParentClassLoader(
                             fileClassLoader,
-                            new TransformedUnmodifiableList<>(dependencyList, SharedDependency::getClassLoader),
+                            new TransformedUnmodifiableList<>(
+                                    dependencyList,
+                                    SharedDependency::getClassLoader,
+                                    EmptyClassLoader.getInstance()
+                            ),
                             true
                     );
                 }
@@ -113,10 +136,27 @@ public final class SharedDependency {
                     }
                 }
 
+                // force load classes
+                if (basePackage!=null){
+                    UtilsInternal.loadAllClasses(
+                            unionClassLoader,
+                            file.toURI().toURL(),
+                            basePackage
+                    );
+                } else {
+                    UtilsInternal.loadAllClasses(
+                            unionClassLoader,
+                            file.toURI().toURL()
+                    );
+                }
+
                 // throw collected warnings
                 if (!incompleteBuilder.isEmpty()){
                     throw incompleteBuilder.build();
                 }
+
+                // without errors
+                status = Status.RESOLVED;
 
             } catch (ResolveDependenciesIncompleteException incompleteException) {
                 if (!incompleteException.hasErrors()) {
@@ -124,7 +164,6 @@ public final class SharedDependency {
                 }
                 throw incompleteException;
             }
-            // !! IOException | ManifestNotFoundException !!
 
         } finally {
             if (status == Status.RESOLVING){
