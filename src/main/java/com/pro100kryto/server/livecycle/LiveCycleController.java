@@ -10,13 +10,13 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Objects;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static com.pro100kryto.server.livecycle.LiveCycleStatusAdvanced.*;
+import static com.pro100kryto.server.livecycle.LiveCycleStatus.AdvancedNames.*;
 
 public final class LiveCycleController implements ILiveCycle {
     private ILogger logger;
     private final String elementName;
 
-    private final LiveCycleStatusContainer status;
+    private final LiveCycleStatus status;
     private final ILiveCycleImpl defaultImpl;
 
     private ReentrantLock liveCycleLock;
@@ -70,7 +70,7 @@ public final class LiveCycleController implements ILiveCycle {
         this.logger = Objects.requireNonNull(logger);
         this.elementName = elementName;
         this.liveCycleLock = Objects.requireNonNull(lock);
-        this.status = new LiveCycleStatusContainer(liveCycleLock);
+        this.status = new LiveCycleStatus(liveCycleLock);
 
         this.defaultImpl = Objects.requireNonNull(defaultImpl);
 
@@ -157,7 +157,7 @@ public final class LiveCycleController implements ILiveCycle {
                     destroy();
                 }
 
-                throw new InitException("Failed init " + elementName, throwable, status.getAdvanced());
+                throw new InitException("Failed init " + elementName, throwable, status.getAdvancedName());
 
             }
 
@@ -192,7 +192,7 @@ public final class LiveCycleController implements ILiveCycle {
                     stopForce();
                 }
 
-                throw new StartException("Failed start " + elementName, throwable, status.getAdvanced());
+                throw new StartException("Failed start " + elementName, throwable, status.getAdvancedName());
             }
 
         } finally {
@@ -262,9 +262,9 @@ public final class LiveCycleController implements ILiveCycle {
                 if (isEnabledAutoFixBroken) stopForce();
 
                 if (stopSlowRef == null || throwable.getClass().equals(NotImplementedException.class)) {
-                    throw new StopSlowException("Failed stopSlow (not supported) " + elementName, throwable, status.getAdvanced());
+                    throw new StopSlowException("Failed stopSlow (not supported) " + elementName, throwable, status.getAdvancedName());
                 } else {
-                    throw new StopSlowException("Failed stopSlow " + elementName, throwable, status.getAdvanced());
+                    throw new StopSlowException("Failed stopSlow " + elementName, throwable, status.getAdvancedName());
                 }
             }
 
@@ -330,7 +330,7 @@ public final class LiveCycleController implements ILiveCycle {
     }
 
     @Override
-    public LiveCycleStatusContainer getStatus() {
+    public LiveCycleStatus getStatus() {
         return status;
     }
 
@@ -339,8 +339,8 @@ public final class LiveCycleController implements ILiveCycle {
         return liveCycleLock;
     }
 
-    private void setStatus(LiveCycleStatusAdvanced status){
-        this.status.setStatus(status);
+    private void setStatus(LiveCycleStatus.AdvancedNames statusName){
+        this.status.set(statusName);
         logger.info(elementName+" status="+status);
     }
 }

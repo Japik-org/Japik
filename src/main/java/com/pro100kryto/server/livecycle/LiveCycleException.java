@@ -1,19 +1,19 @@
 package com.pro100kryto.server.livecycle;
 
 public abstract class LiveCycleException extends Exception{
-    private final LiveCycleStatusAdvanced newStatus;
+    private final LiveCycleStatus.AdvancedNames newStatus;
 
-    public LiveCycleException(String message, LiveCycleStatusAdvanced newStatus) {
+    public LiveCycleException(String message, LiveCycleStatus.AdvancedNames newStatus) {
         super(message);
         this.newStatus = newStatus;
     }
 
-    public LiveCycleException(String message, Throwable cause, LiveCycleStatusAdvanced newStatus) {
+    public LiveCycleException(String message, Throwable cause, LiveCycleStatus.AdvancedNames newStatus) {
         super(message, cause);
         this.newStatus = newStatus;
     }
 
-    public LiveCycleStatusAdvanced getNewStatus() {
+    public LiveCycleStatus.AdvancedNames getNewStatus() {
         return newStatus;
     }
 }

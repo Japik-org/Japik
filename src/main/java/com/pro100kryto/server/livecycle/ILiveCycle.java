@@ -14,6 +14,6 @@ public interface ILiveCycle extends ILiveCycleImpl,
     void announceStop();
     boolean canBeStoppedSafe();
 
-    LiveCycleStatusContainer getStatus();
+    LiveCycleStatus getStatus();
     ReentrantLock getLiveCycleLock();
 }

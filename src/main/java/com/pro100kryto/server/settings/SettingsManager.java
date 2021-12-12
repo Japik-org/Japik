@@ -1,7 +1,6 @@
 package com.pro100kryto.server.settings;
 
-import com.pro100kryto.server.livecycle.ILiveCycleStatusContainer;
-import com.pro100kryto.server.livecycle.LiveCycleStatusAdvanced;
+import com.pro100kryto.server.livecycle.LiveCycleStatus;
 import com.pro100kryto.server.logger.ILogger;
 import lombok.NonNull;
 import lombok.Setter;
@@ -75,7 +74,7 @@ public final class SettingsManager implements ISettingsCallback{
         }
 
         else if (managerCallback.getLiveCycle().getStatus().isInitialized()
-                || managerCallback.getLiveCycle().getStatus().is(LiveCycleStatusAdvanced.INITIALIZING)) {
+                || managerCallback.getLiveCycle().getStatus().is(LiveCycleStatus.AdvancedNames.INITIALIZING)) {
             eventMask = eventMask.append(SettingListenerEventMask.WHEN_INITIALIZED);
         }
 
@@ -186,7 +185,7 @@ public final class SettingsManager implements ISettingsCallback{
         apply(eventMask);
     }
 
-    private ILiveCycleStatusContainer getStatus() {
+    private LiveCycleStatus getStatus() {
         return managerCallback.getLiveCycle().getStatus();
     }
 

@@ -5,6 +5,7 @@ import com.pro100kryto.server.SharedDependency;
 import com.pro100kryto.server.SharedDependencyLord;
 import com.pro100kryto.server.Tenant;
 import com.pro100kryto.server.exceptions.ManifestNotFoundException;
+import com.pro100kryto.server.livecycle.LiveCycleStatus;
 import com.pro100kryto.server.logger.ILogger;
 import com.pro100kryto.server.service.IService;
 import com.pro100kryto.server.service.IllegalModuleFormatException;
@@ -51,7 +52,7 @@ public final class ModuleLoader {
             IllegalModuleFormatException,
             IllegalAccessException {
 
-        if (service.getLiveCycle().getStatus().isNotInitialized()){
+        if (service.getLiveCycle().getStatus().is(LiveCycleStatus.AdvancedNames.NOT_INITIALIZED)){
             throw new IllegalStateException();
         }
 
