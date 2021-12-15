@@ -75,13 +75,6 @@ public final class SharedDependency {
 
                 // resolving
 
-                // file ClassLoader
-                if (fileClassLoader == null) {
-                    fileClassLoader = new URLClassLoader(
-                            new URL[]{file.toURI().toURL()}
-                    );
-                }
-
                 // dependencies
                 if (dependencyList == null) {
 
@@ -107,16 +100,24 @@ public final class SharedDependency {
                     }
                 }
 
-                // Result ClassLoader
+                // Union ClassLoader
                 if (unionClassLoader == null) {
                     unionClassLoader = new MultipleParentClassLoader(
-                            fileClassLoader,
+                            ClassLoader.getSystemClassLoader(),
                             new TransformedUnmodifiableList<>(
                                     dependencyList,
                                     SharedDependency::getClassLoader,
                                     EmptyClassLoader.getInstance()
                             ),
                             true
+                    );
+                }
+
+                // file ClassLoader
+                if (fileClassLoader == null) {
+                    fileClassLoader = new URLClassLoader(
+                            new URL[]{file.toURI().toURL()},
+                            unionClassLoader
                     );
                 }
 
@@ -139,13 +140,13 @@ public final class SharedDependency {
                 // force load classes
                 if (basePackage!=null){
                     UtilsInternal.loadAllClasses(
-                            unionClassLoader,
+                            fileClassLoader,
                             file.toURI().toURL(),
                             basePackage
                     );
                 } else {
                     UtilsInternal.loadAllClasses(
-                            unionClassLoader,
+                            fileClassLoader,
                             file.toURI().toURL()
                     );
                 }
@@ -192,8 +193,8 @@ public final class SharedDependency {
                 fileClassLoader.close();
             } catch (IOException | NullPointerException ignored) {
             }
-            unionClassLoader = null;
             fileClassLoader = null;
+            unionClassLoader = null;
             dependencyList = null;
 
         } finally {
@@ -207,7 +208,7 @@ public final class SharedDependency {
 
     @Nullable
     public ClassLoader getClassLoader() {
-        return unionClassLoader;
+        return fileClassLoader;
     }
 
     public List<SharedDependency> getDependencyList() {
