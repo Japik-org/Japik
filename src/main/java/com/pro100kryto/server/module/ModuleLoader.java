@@ -9,6 +9,7 @@ import com.pro100kryto.server.livecycle.LiveCycleStatus;
 import com.pro100kryto.server.logger.ILogger;
 import com.pro100kryto.server.service.IService;
 import com.pro100kryto.server.service.IllegalModuleFormatException;
+import com.pro100kryto.server.settings.SettingsApplyIncompleteException;
 import com.pro100kryto.server.utils.ResolveDependenciesIncompleteException;
 import com.pro100kryto.server.utils.UtilsInternal;
 import org.jetbrains.annotations.Nullable;
@@ -37,6 +38,8 @@ public final class ModuleLoader {
 
     private final ReentrantLock lock = new ReentrantLock();
 
+    private final Map<String, Map<String, String>> moduleNameSettingsMap = new HashMap<>();
+
 
     public ModuleLoader(IService<?> service, SharedDependencyLord sharedDependencyLord, ClassLoader baseClassLoader, ILogger logger) {
         this.service = service;
@@ -45,12 +48,31 @@ public final class ModuleLoader {
         this.logger = logger;
     }
 
+    public void preloadModuleSettings(String moduleName, Map<String, String> settings){
+        lock.lock();
+        try {
+            moduleNameSettingsMap.put(moduleName, settings);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void unloadModuleSettings(String moduleName){
+        lock.lock();
+        try{
+            moduleNameSettingsMap.remove(moduleName);
+        } finally {
+            lock.unlock();
+        }
+    }
+
     public <MC extends IModuleConnection> IModule<MC> createModule(String moduleType, String moduleName) throws
             ModuleAlreadyExistsException,
             IOException,
             ResolveDependenciesIncompleteException,
             IllegalModuleFormatException,
-            IllegalAccessException {
+            IllegalAccessException,
+            SettingsApplyIncompleteException {
 
         if (service.getLiveCycle().getStatus().is(LiveCycleStatus.AdvancedNames.NOT_INITIALIZED)){
             throw new IllegalStateException();
@@ -187,6 +209,17 @@ public final class ModuleLoader {
                     namePrivateCLMap.put(moduleName, privateDepsClassLoader);
 
                     logger.info("New module created. " + module.toString());
+
+                    {
+                        final Map<String, String> preSettings = moduleNameSettingsMap.get(moduleName);
+                        if (preSettings != null) {
+                            for (final String key : preSettings.keySet()) {
+                                module.getSettings().put(key, preSettings.get(key));
+                            }
+                            logger.info("Module settings preloaded. " + module.toString());
+                        }
+                    }
+
                     return module;
 
                 } catch (IllegalAccessException illegalAccessException) {
