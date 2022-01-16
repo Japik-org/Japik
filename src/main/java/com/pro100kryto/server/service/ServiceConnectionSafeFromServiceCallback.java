@@ -26,9 +26,16 @@ public final class ServiceConnectionSafeFromServiceCallback <SC extends IService
         refreshLock.lock();
         try{
             // !! ClassCastException !!
-            final IService<SC> service = serviceCallback.createServiceConnection(serviceName);
+            final IService<SC> service = serviceCallback.getServiceConnection(serviceName);
             if (service == null) throw new ServiceNotFoundException(serviceName);
-            serviceConnection = service.createServiceConnection();
+
+            final SC oldSC = serviceConnection;
+            final SC newSC = service.getServiceConnection();
+            if (oldSC != newSC && oldSC!=null && !oldSC.isClosed()){
+                oldSC.close();
+            }
+            serviceConnection = newSC;
+
             serviceConnection.ping();
 
         } finally {

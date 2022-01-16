@@ -69,7 +69,7 @@ public final class ModuleConnectionSafeFromLoader<MC extends IModuleConnection> 
             final IModule<MC> module = (IModule<MC>) service.getModuleLoader().getModule(moduleName);
             if (module == null) throw new ModuleNotFoundException(moduleName);
 
-            moduleConnection = module.createModuleConnection();
+            moduleConnection = module.getModuleConnection();
             moduleConnection.ping();
 
         } finally {

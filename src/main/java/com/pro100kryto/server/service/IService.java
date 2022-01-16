@@ -17,7 +17,7 @@ public interface IService <SC extends IServiceConnection>{
     Settings getSettings();
 
     @Nullable
-    SC createServiceConnection();
+    SC getServiceConnection();
     ServiceConnectionSafeFromServiceCallback<SC> createServiceConnectionSafe();
 
     Tenant asTenant();

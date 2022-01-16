@@ -10,9 +10,14 @@ import com.pro100kryto.server.service.IService;
 import com.pro100kryto.server.service.IServiceConnection;
 import com.pro100kryto.server.service.IServiceConnectionSafe;
 import com.pro100kryto.server.settings.*;
+import org.eclipse.collections.impl.map.mutable.primitive.IntObjectHashMap;
 import org.jetbrains.annotations.NotNull;
 
-public abstract class AModule <MC extends IModuleConnection> implements IModule<MC>, ISettingsManagerCallback {
+import java.util.concurrent.atomic.AtomicInteger;
+
+public abstract class AModule <MC extends IModuleConnection> implements IModule<MC>,
+        ISettingsManagerCallback, IModuleConnectionCallback {
+
     protected final IService<?> service;
     private final Tenant tenant;
     protected final String type;
@@ -25,6 +30,11 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
     protected final SettingsManager settingsManager;
     protected final BaseModuleSettings baseSettings;
 
+    private boolean moduleConnectionMultipleEnabled;
+    private int moduleConnectionMultipleMaxCount;
+    private IntObjectHashMap<MC> moduleConnectionMap;
+    private AtomicInteger moduleConnectionCounter;
+
     public AModule(ModuleParams moduleParams){
         service = moduleParams.getService();
         type = moduleParams.getModuleType();
@@ -35,12 +45,12 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
         // live cycle
         // 3
         liveCycleController = new LiveCycleController.Builder()
-                .setDefaultImpl(getDefaultLiveCycleImpl()) // 4
+                .setDefaultImpl(createDefaultLiveCycleImpl()) // 4
                 .build(logger, "Module name='"+name+"'");
 
         // 1
         liveCycleControllerInternal = new LiveCycleController.Builder()
-                .setDefaultImpl(new LiveCycleInternalImpl()) // 2
+                .setDefaultImpl(new AModuleLiveCycleInternalImpl()) // 2
                 .build(logger, "Module (internal) name='"+name+"'");
 
         // settings
@@ -70,7 +80,7 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
     }
 
     @Override
-    public final ModuleConnectionSafeFromService<MC> createModuleConnectionSafe() {
+    public final ModuleConnectionSafeFromService<MC> getModuleConnectionSafe() {
         return new ModuleConnectionSafeFromService<>(service, this.name);
     }
 
@@ -84,18 +94,77 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
         return "Module { type:'"+type+"', name:'"+name+"', serviceName:'"+service.getName()+"' }";
     }
 
-    // virtual
+    @NotNull
+    public final MC getModuleConnection(){
+        if (getLiveCycle().getStatus().isNotInitialized()){
+            throw new IllegalStateException("Module is not initialized");
+        }
 
-    protected void initLiveCycleController(final LiveCycleController liveCycleController){
+        if (moduleConnectionMultipleEnabled || moduleConnectionMap.isEmpty()){
+            return _createModuleConnection();
+        }
+
+        return moduleConnectionMap.get(moduleConnectionCounter.get());
     }
 
+    private MC _createModuleConnection(){
+        if (moduleConnectionMap.size() >= moduleConnectionMultipleMaxCount){
+            throw new IllegalStateException("No more space for connections");
+        }
+        final MC mc = createModuleConnection(new ModuleConnectionParams(
+                moduleConnectionCounter.incrementAndGet(),
+                logger,
+                this
+        ));
+        moduleConnectionMap.put(mc.getId(), mc);
+        return mc;
+    }
+
+    // virtual
+
     @NotNull
-    protected ILiveCycleImpl getDefaultLiveCycleImpl(){
+    protected ILiveCycleImpl createDefaultLiveCycleImpl(){
         return EmptyLiveCycleImpl.instance;
     }
 
+    protected void setupLiveCycleControllerBeforeInit(LiveCycleController liveCycleController){
+    }
+
+    protected void setupSettingsBeforeInit() throws SettingsApplyIncompleteException {
+        settingsManager.setListener(new SettingListenerContainer(
+                BaseModuleSettings.KEY_AUTO_FIX_BROKEN_ENABLED,
+                new BooleanSettingListener() {
+                    @Override
+                    public void apply2(String key, Boolean val, SettingListenerEventMask eventMask) {
+                        liveCycleController.setEnabledAutoFixBroken(val);
+                    }
+                },
+                Boolean.toString(false)
+        ));
+
+        if (baseSettings.isConnectionMultipleEnabled()) {
+            settingsManager.setListener(new SettingListenerContainer(
+                    BaseModuleSettings.KEY_CONNECTION_MULTIPLE_COUNT,
+                    new IntegerSettingListener() {
+                        @Override
+                        public void apply2(String key, Integer val, SettingListenerEventMask eventMask) {
+                            final IntObjectHashMap<MC> newMap = new IntObjectHashMap<>(val);
+                            newMap.putAll(moduleConnectionMap);
+                            moduleConnectionMap = newMap;
+                            moduleConnectionMultipleMaxCount = val;
+                        }
+                    }
+            ));
+        }
+    }
+
     @NotNull
-    public abstract MC createModuleConnection();
+    protected abstract MC createModuleConnection(ModuleConnectionParams params);
+
+    @Override
+    public void onCloseModuleConnection(int id) {
+        moduleConnectionMap.remove(id);
+    }
 
     // utils
 
@@ -138,25 +207,27 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
         return liveCycleControllerInternal;
     }
 
-    private final class LiveCycleInternalImpl implements ILiveCycleImpl {
+    private final class AModuleLiveCycleInternalImpl implements ILiveCycleImpl {
 
         @Override
         public void init() throws Throwable {
-            initLiveCycleController(liveCycleController);
+            setupSettingsBeforeInit();
 
-            settingsManager.setListener(new SettingListenerContainer(
-                    BaseModuleSettings.KEY_AUTO_FIX_BROKEN_ENABLE,
-                    new BooleanSettingListener() {
-                        @Override
-                        public void apply2(String key, Boolean val, SettingListenerEventMask eventMask) {
-                            liveCycleController.setEnabledAutoFixBroken(val);
-                        }
-                    },
-                    Boolean.toString(false)
-            ));
-
+            setupLiveCycleControllerBeforeInit(liveCycleController);
             liveCycleController.init();
             settingsManager.applyIfChanged();
+
+            // connection
+
+            moduleConnectionMultipleEnabled = baseSettings.isConnectionMultipleEnabled();
+            moduleConnectionMultipleMaxCount = (baseSettings.isConnectionMultipleEnabled() ? baseSettings.getConnectionMultipleCount() : 1);
+
+            moduleConnectionMap = new IntObjectHashMap<>(moduleConnectionMultipleMaxCount);
+            moduleConnectionCounter = new AtomicInteger();
+
+            if (baseSettings.isConnectionCreateAfterInitEnabled()){
+                _createModuleConnection();
+            }
         }
 
         @Override
@@ -178,6 +249,10 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
         @Override
         public void destroy() {
             settingsManager.removeAllListeners();
+
+            while (!moduleConnectionMap.isEmpty()){
+                moduleConnectionMap.iterator().next().close();
+            }
 
             liveCycleController.destroy();
             liveCycleController.setDefaultImpl();

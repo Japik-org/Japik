@@ -97,12 +97,11 @@ public final class SettingsManager implements ISettingsCallback{
                         if (!listenerContainer.getEventMask().containsComplete(eventMaskParts1And2)) continue;
 
                         if (!settings.containsKey(key)){
-                            if (listenerContainer.getDefaultValue() != null){
-                                settings.put(key, listenerContainer.getDefaultValue());
-                            } else {
-                                if (listenerContainer.isOptional()) continue;
+                            if (listenerContainer.isOptional()) continue;
+                            if (listenerContainer.getDefaultValue() == null){
                                 throw new MissingSettingException(settings, key);
                             }
+                            settings.put(key, listenerContainer.getDefaultValue());
                         }
 
                         final SettingListenerEventMask eventMask;

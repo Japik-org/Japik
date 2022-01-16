@@ -403,9 +403,8 @@ public final class ServiceLoader {
         }
 
         @Override
-        public <SC extends IServiceConnection> SC createServiceConnection(String serviceName) {
-            return (SC) nameServiceMap.get(serviceName)
-                    .createServiceConnection();
+        public <SC extends IServiceConnection> SC getServiceConnection(String serviceName) {
+            return (SC) nameServiceMap.get(serviceName).getServiceConnection();
         }
 
         @Override

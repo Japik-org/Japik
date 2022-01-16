@@ -16,38 +16,38 @@ public final class SettingListenerContainer {
     private final String defaultValue;
 
     /**
-     * obligatory setting with default mask
+     * optional setting with default mask
      */
     public SettingListenerContainer(String key, ISettingListener listener) {
-        this(key, listener, SettingListenerEventMask.DEFAULT, false, null);
+        this(key, listener, SettingListenerEventMask.DEFAULT, true, null);
     }
 
     /**
-     * obligatory or optional setting with default mask
+     * obligatory / optional setting with default mask
      */
     public SettingListenerContainer(String key, ISettingListener listener, boolean isOptional) {
         this(key, listener, SettingListenerEventMask.DEFAULT, isOptional, null);
     }
 
     /**
-     * obligatory setting with custom mask
+     * optional setting with custom mask
      */
     public SettingListenerContainer(String key, ISettingListener listener, SettingListenerEventMask eventMask) {
-        this(key, listener, eventMask, false, null);
+        this(key, listener, eventMask, true, null);
     }
 
     /**
-     * get value from settings or default with default mask
+     * obligatory setting with default value and default mask
      */
     public SettingListenerContainer(String key, ISettingListener listener, Object defaultValueToString) {
-        this(key, listener, SettingListenerEventMask.DEFAULT, true, defaultValueToString);
+        this(key, listener, SettingListenerEventMask.DEFAULT, false, defaultValueToString);
     }
 
     /**
-     * get value from settings or default with custom mask
+     * obligatory setting with default value and custom mask
      */
     public SettingListenerContainer(String key, ISettingListener listener, SettingListenerEventMask eventMask, Object defaultValueToString) {
-        this(key, listener, eventMask, true, defaultValueToString);
+        this(key, listener, eventMask, false, defaultValueToString);
     }
 
     /**

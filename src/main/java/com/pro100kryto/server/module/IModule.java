@@ -15,8 +15,8 @@ public interface IModule <MC extends IModuleConnection> {
     Settings getSettings();
 
     @Nullable
-    MC createModuleConnection();
-    ModuleConnectionSafeFromService<MC> createModuleConnectionSafe();
+    MC getModuleConnection();
+    ModuleConnectionSafeFromService<MC> getModuleConnectionSafe();
 
     Tenant asTenant();
 }

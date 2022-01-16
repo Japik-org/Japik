@@ -29,7 +29,14 @@ public final class ServiceConnectionSafeFromLoader <SC extends IServiceConnectio
             // !! ClassCastException !!
             final IService<SC> service = (IService<SC>) serviceLoader.getService(serviceName);
             if (service == null) throw new ServiceNotFoundException(serviceName);
-            serviceConnection = service.createServiceConnection();
+
+            final SC oldSC = serviceConnection;
+            final SC newSC = service.getServiceConnection();
+            if (oldSC != newSC && oldSC!=null && !oldSC.isClosed()){
+                oldSC.close();
+            }
+            serviceConnection = newSC;
+
             serviceConnection.ping();
 
         } finally {

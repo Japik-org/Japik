@@ -125,7 +125,7 @@ public abstract class AExtension <EC extends IExtensionConnection> implements IE
             initLiveCycleController(liveCycleController);
 
             settingsManager.setListener(new SettingListenerContainer(
-                    BaseModuleSettings.KEY_AUTO_FIX_BROKEN_ENABLE,
+                    BaseModuleSettings.KEY_AUTO_FIX_BROKEN_ENABLED,
                     new BooleanSettingListener() {
                         @Override
                         public void apply2(String key, Boolean val, SettingListenerEventMask eventMask) {
