@@ -26,6 +26,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.jar.Attributes;
+import java.util.jar.JarFile;
+import java.util.jar.Manifest;
 
 public final class ModuleLoader {
     private final IService<?> service;
@@ -89,18 +92,38 @@ public final class ModuleLoader {
             }
 
             // define module files
-            final File moduleConnectionFile = Paths.get(sharedDependencyLord.getCorePath().toString(),
-                    "modules",
-                    moduleType.toLowerCase() + "-module-connection.jar").toFile();
-            if (!moduleConnectionFile.exists()){
-                logger.warn(moduleConnectionFile.getCanonicalPath() + " not found");
-            }
-
             final File moduleFile = Paths.get(sharedDependencyLord.getCorePath().toString(),
                     "modules",
                     moduleType.toLowerCase() + "-module.jar").toFile();
-            if (!moduleFile.exists())
+            if (!moduleFile.exists()) {
                 throw new FileNotFoundException(moduleFile.getCanonicalPath() + " not found");
+            }
+
+            final String moduleConnectionType;
+            {
+                String moduleConnectionType2 = moduleType;
+                final JarFile jarFile = new JarFile(moduleFile);
+                final Manifest manifest = jarFile.getManifest();
+                if (manifest == null) { // manifest does not exist
+                    logger.warn("Manifest not found for module Type = " + moduleType);
+                } else {
+                    final Attributes attributes = manifest.getMainAttributes();
+                    final String v = attributes.getValue("Connection-Type");
+                    if (v != null){
+                        moduleConnectionType2 = attributes.getValue("Connection-Type");
+                    }
+                }
+                moduleConnectionType = moduleConnectionType2;
+            }
+
+            final Path moduleConnectionFilePath = Paths.get(sharedDependencyLord.getCorePath().toString(),
+                    "modules",
+                    moduleConnectionType.toLowerCase() + "-module-connection.jar");
+
+            final File moduleConnectionFile = moduleConnectionFilePath.toFile();
+            if (!moduleConnectionFile.exists()){
+                logger.warn(moduleConnectionFile.getCanonicalPath() + " not found");
+            }
 
             // rent module-connection
             final Tenant moduleAsTenant = new Tenant("Module name='" + moduleName + "'");
@@ -183,6 +206,7 @@ public final class ModuleLoader {
                             moduleFile.toURI().toURL(),
                             modulePkgName
                     );
+
                     privateClassPathList
                             .forEach((path -> {
                                 try {

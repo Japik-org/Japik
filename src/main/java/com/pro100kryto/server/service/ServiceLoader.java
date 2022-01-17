@@ -21,7 +21,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.jar.Attributes;
 import java.util.jar.JarFile;
+import java.util.jar.Manifest;
 
 public final class ServiceLoader {
     private final Server server;
@@ -72,18 +74,37 @@ public final class ServiceLoader {
             }
 
             // define service files
-            final File serviceConnectionFile = Paths.get(sharedDependencyLord.getCorePath().toString(),
-                    "services",
-                    serviceType.toLowerCase() + "-service-connection.jar").toFile();
-            if (!serviceConnectionFile.exists()) {
-                logger.warn(serviceConnectionFile.getCanonicalPath() + " not found");
-            }
-
             final File serviceFile = Paths.get(sharedDependencyLord.getCorePath().toString(),
                     "services",
                     serviceType.toLowerCase() + "-service.jar").toFile();
             if (!serviceFile.exists()) {
                 throw new FileNotFoundException(serviceFile.getCanonicalPath() + " not found");
+            }
+
+            final String serviceConnectionType;
+            {
+                String serviceConnectionType2 = serviceType;
+                final JarFile jarFile = new JarFile(serviceFile);
+                final Manifest manifest = jarFile.getManifest();
+                if (manifest == null) { // manifest does not exist
+                    logger.warn("Manifest not found for service Type = " + serviceType);
+                } else {
+                    final Attributes attributes = manifest.getMainAttributes();
+                    final String v = attributes.getValue("Connection-Type");
+                    if (v != null){
+                        serviceConnectionType2 = attributes.getValue("Connection-Type");
+                    }
+                }
+                serviceConnectionType = serviceConnectionType2;
+            }
+
+            final Path serviceConnectionFilePath = Paths.get(sharedDependencyLord.getCorePath().toString(),
+                    "services",
+                    serviceConnectionType.toLowerCase() + "-service-connection.jar");
+
+            final File serviceConnectionFile = serviceConnectionFilePath.toFile();
+            if (!serviceConnectionFile.exists()) {
+                logger.warn(serviceConnectionFile.getCanonicalPath() + " not found");
             }
 
             // rent service-connection

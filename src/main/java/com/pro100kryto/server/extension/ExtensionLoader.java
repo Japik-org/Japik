@@ -19,6 +19,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.jar.Attributes;
+import java.util.jar.JarFile;
+import java.util.jar.Manifest;
 
 public final class ExtensionLoader {
     private final Server server;
@@ -60,18 +63,37 @@ public final class ExtensionLoader {
             }
 
             // define ext files
-            final File extConnectionFile = Paths.get(sharedDependencyLord.getCorePath().toString(),
-                    "extensions",
-                    extType.toLowerCase() + "-extension-connection.jar").toFile();
-            if (!extConnectionFile.exists()) {
-                logger.warn(extConnectionFile.getCanonicalPath() + " not found");
-            }
-
             final File extFile = Paths.get(sharedDependencyLord.getCorePath().toString(),
                     "extensions",
                     extType.toLowerCase() + "-extension.jar").toFile();
             if (!extFile.exists()) {
                 throw new FileNotFoundException(extFile.getCanonicalPath() + " not found");
+            }
+
+            final String extConnectionType;
+            {
+                String extConnectionType2 = extType;
+                final JarFile jarFile = new JarFile(extFile);
+                final Manifest manifest = jarFile.getManifest();
+                if (manifest == null) { // manifest does not exist
+                    logger.warn("Manifest not found for extension Type = " + extType);
+                } else {
+                    final Attributes attributes = manifest.getMainAttributes();
+                    final String v = attributes.getValue("Connection-Type");
+                    if (v != null){
+                        extConnectionType2 = attributes.getValue("Connection-Type");
+                    }
+                }
+                extConnectionType = extConnectionType2;
+            }
+
+            final Path extConnectionFilePath = Paths.get(sharedDependencyLord.getCorePath().toString(),
+                    "extensions",
+                    extConnectionType.toLowerCase() + "-extension-connection.jar");
+
+            final File extConnectionFile = extConnectionFilePath.toFile();
+            if (!extConnectionFile.exists()) {
+                logger.warn(extConnectionFile.getCanonicalPath() + " not found");
             }
 
             // rent ext conn
