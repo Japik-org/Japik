@@ -10,7 +10,7 @@ public final class BaseServiceSettings {
     public static final String KEY_AUTO_FIX_BROKEN_ENABLED = "liveCycle-autoFixBroken-enabled";
     public static final String KEY_CONNECTION_MULTIPLE_ENABLED = "connection-multiple-enabled";
     public static final String KEY_CONNECTION_MULTIPLE_COUNT = "connection-multiple-count";
-    public static final String KEY_CONNECTION_CREATE_AFTER_INIT = "connection-createAfterInit";
+    public static final String KEY_CONNECTION_CREATE_AFTER_INIT_ENABLED = "connection-createAfterInit-enabled";
 
     public BaseServiceSettings(Settings settings) {
         this.settings = Objects.requireNonNull(settings);
@@ -29,6 +29,6 @@ public final class BaseServiceSettings {
     }
 
     public boolean isConnectionCreateAfterInitEnabled(){
-        return settings.getBooleanOrDefault(KEY_CONNECTION_CREATE_AFTER_INIT, false);
+        return settings.getBooleanOrDefault(KEY_CONNECTION_CREATE_AFTER_INIT_ENABLED, false);
     }
 }
