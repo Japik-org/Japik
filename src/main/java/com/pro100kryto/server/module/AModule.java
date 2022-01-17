@@ -130,7 +130,7 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
     protected void setupLiveCycleControllerBeforeInit(LiveCycleController liveCycleController){
     }
 
-    protected void setupSettingsBeforeInit() throws SettingsApplyIncompleteException {
+    protected void setupSettingsBeforeInit() throws Throwable {
         settingsManager.setListener(new SettingListenerContainer(
                 BaseModuleSettings.KEY_AUTO_FIX_BROKEN_ENABLED,
                 new BooleanSettingListener() {

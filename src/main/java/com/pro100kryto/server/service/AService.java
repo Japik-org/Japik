@@ -140,7 +140,7 @@ public abstract class AService <SC extends IServiceConnection> implements IServi
     protected void setupLiveCycleControllerBeforeInit(LiveCycleController liveCycleController){
     }
 
-    protected void setupSettingsBeforeInit(){
+    protected void setupSettingsBeforeInit() throws Throwable {
         settingsManager.setListener(new SettingListenerContainer(
                 BaseServiceSettings.KEY_AUTO_FIX_BROKEN_ENABLED,
                 new BooleanSettingListener() {
