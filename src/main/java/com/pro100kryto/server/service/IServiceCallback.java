@@ -14,6 +14,6 @@ public interface IServiceCallback {
     /**
      * @throws ClassCastException
      */
-    <SC extends IServiceConnection> SC getServiceConnection(String serviceName);
+    <SC extends IServiceConnection> SC getServiceConnection(String serviceName) throws ServiceNotFoundException;
     <SC extends IServiceConnection> IServiceConnectionSafe<SC> createServiceConnectionSafe(String serviceName);
 }

@@ -25,12 +25,8 @@ public final class ServiceConnectionSafeFromServiceCallback <SC extends IService
         if (isClosed) throw new IllegalStateException();
         refreshLock.lock();
         try{
-            // !! ClassCastException !!
-            final IService<SC> service = serviceCallback.getServiceConnection(serviceName);
-            if (service == null) throw new ServiceNotFoundException(serviceName);
-
             final SC oldSC = serviceConnection;
-            final SC newSC = service.getServiceConnection();
+            final SC newSC = serviceCallback.getServiceConnection(serviceName);
             if (oldSC != newSC && oldSC!=null && !oldSC.isClosed()){
                 oldSC.close();
             }

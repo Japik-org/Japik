@@ -349,8 +349,12 @@ public final class ServiceLoader {
         }
     }
 
-    public IService<?> getService(String serviceName){
-        return nameServiceMap.get(serviceName);
+    public <SC extends IServiceConnection> IService<SC> getService(String serviceName) throws ServiceNotFoundException {
+        final IService<SC> service = (IService<SC>) nameServiceMap.get(serviceName);
+        if (service == null){
+            throw new ServiceNotFoundException(serviceName);
+        }
+        return service;
     }
 
     public Iterable<String> getServiceNames(){
@@ -424,8 +428,8 @@ public final class ServiceLoader {
         }
 
         @Override
-        public <SC extends IServiceConnection> SC getServiceConnection(String serviceName) {
-            return (SC) nameServiceMap.get(serviceName).getServiceConnection();
+        public <SC extends IServiceConnection> SC getServiceConnection(String serviceName) throws ServiceNotFoundException {
+            return (SC) getService(serviceName).getServiceConnection();
         }
 
         @Override
