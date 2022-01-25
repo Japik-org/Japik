@@ -1,4 +1,4 @@
-package com.pro100kryto.server.exceptions;
+package com.pro100kryto.server.utils;
 
 import java.util.jar.JarFile;
 

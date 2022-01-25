@@ -1,6 +1,6 @@
 package com.pro100kryto.server.livecycle;
 
-import com.pro100kryto.server.exceptions.NotImplementedException;
+import com.pro100kryto.server.NotImplementedException;
 import com.pro100kryto.server.logger.ILogger;
 import lombok.Setter;
 import lombok.experimental.Accessors;

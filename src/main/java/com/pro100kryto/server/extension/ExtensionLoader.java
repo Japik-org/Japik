@@ -1,7 +1,7 @@
 package com.pro100kryto.server.extension;
 
 import com.pro100kryto.server.*;
-import com.pro100kryto.server.exceptions.ManifestNotFoundException;
+import com.pro100kryto.server.utils.ManifestNotFoundException;
 import com.pro100kryto.server.logger.ILogger;
 import com.pro100kryto.server.utils.ResolveDependenciesIncompleteException;
 import com.pro100kryto.server.utils.UtilsInternal;

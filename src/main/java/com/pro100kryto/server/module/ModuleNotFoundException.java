@@ -1,10 +1,16 @@
 package com.pro100kryto.server.module;
 
-public final class ModuleNotFoundException extends Exception{
-    public ModuleNotFoundException() {
-    }
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
-    public ModuleNotFoundException(String moduleName) {
-        super("Module name='"+moduleName+"' not found");
+@RequiredArgsConstructor
+@Getter
+public final class ModuleNotFoundException extends Exception{
+    private final String serviceName;
+    private final String moduleName;
+
+    @Override
+    public String getMessage() {
+        return "Module name='"+moduleName+"' not found in service name='"+serviceName+"'";
     }
 }

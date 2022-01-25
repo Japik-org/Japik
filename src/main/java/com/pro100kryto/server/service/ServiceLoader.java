@@ -1,7 +1,7 @@
 package com.pro100kryto.server.service;
 
 import com.pro100kryto.server.*;
-import com.pro100kryto.server.exceptions.ManifestNotFoundException;
+import com.pro100kryto.server.utils.ManifestNotFoundException;
 import com.pro100kryto.server.logger.ILogger;
 import com.pro100kryto.server.logger.LoggerAlreadyExistsException;
 import com.pro100kryto.server.module.ModuleLoader;
@@ -349,6 +349,10 @@ public final class ServiceLoader {
         }
     }
 
+    /**
+     * @throws ServiceNotFoundException
+     * @throws ClassCastException
+     */
     public <SC extends IServiceConnection> IService<SC> getService(String serviceName) throws ServiceNotFoundException {
         final IService<SC> service = (IService<SC>) nameServiceMap.get(serviceName);
         if (service == null){

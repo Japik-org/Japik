@@ -4,7 +4,8 @@ import com.pro100kryto.server.Tenant;
 import com.pro100kryto.server.livecycle.ILiveCycle;
 import com.pro100kryto.server.service.IService;
 import com.pro100kryto.server.settings.Settings;
-import org.jetbrains.annotations.Nullable;
+
+import java.rmi.RemoteException;
 
 public interface IModule <MC extends IModuleConnection> {
     IService<?> getService();
@@ -14,8 +15,7 @@ public interface IModule <MC extends IModuleConnection> {
     ILiveCycle getLiveCycle();
     Settings getSettings();
 
-    @Nullable
-    MC getModuleConnection();
+    MC getModuleConnection() throws RemoteException;
     ModuleConnectionSafeFromService<MC> getModuleConnectionSafe();
 
     Tenant asTenant();

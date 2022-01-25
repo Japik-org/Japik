@@ -1,11 +1,14 @@
 package com.pro100kryto.server.module;
 
 import com.pro100kryto.server.service.IService;
+import com.pro100kryto.server.service.ServiceNotFoundException;
 
+import java.rmi.RemoteException;
 import java.util.Objects;
 import java.util.concurrent.locks.ReentrantLock;
 
-public final class ModuleConnectionSafeFromService<MC extends IModuleConnection> implements IModuleConnectionSafe<MC> {
+public final class ModuleConnectionSafeFromService<MC extends IModuleConnection> implements IModuleConnectionSafe<MC>,
+        IModuleConnectionCloseListener {
     private final ReentrantLock refreshLock = new ReentrantLock();
     private final IService<?> service;
     private final String moduleName;
@@ -35,11 +38,11 @@ public final class ModuleConnectionSafeFromService<MC extends IModuleConnection>
 
 
     @Override
-    public MC getModuleConnection() throws ModuleNotFoundException {
-        if ((moduleConnection == null || moduleConnection.isClosed()) && isAutoReconnectEnabled){
+    public MC getModuleConnection() throws RemoteException {
+        if (moduleConnection == null && isAutoReconnectEnabled) {
             refreshLock.lock();
             try {
-                if (!isAliveConnection()) {
+                if (moduleConnection == null) {
                     refreshConnection();
                 }
             } finally {
@@ -49,19 +52,46 @@ public final class ModuleConnectionSafeFromService<MC extends IModuleConnection>
         return moduleConnection;
     }
 
-    /**
-     * @throws ClassCastException - wrong module type
-     */
     @Override
-    public void refreshConnection() throws ModuleNotFoundException {
-        if (isClosed) throw new IllegalStateException();
+    public void refreshConnection() throws RemoteException {
         refreshLock.lock();
         try {
+
             // !! ClassCastException !!
-            final IModule<MC> module = (IModule<MC>) service.getModuleLoader().getModule(moduleName);
-            if (module == null) throw new ModuleNotFoundException(moduleName);
-            moduleConnection = module.getModuleConnection();
-            moduleConnection.ping();
+            final IModule<MC> module = service.getModuleLoader().getModule(moduleName);
+
+            final MC oldMC = moduleConnection;
+            final MC newMC = module.getModuleConnection();
+            if (oldMC != newMC && oldMC != null && !oldMC.isClosed()) {
+                oldMC.close();
+            }
+            moduleConnection = newMC;
+
+            try {
+                moduleConnection.setCloseListener(this);
+                moduleConnection.ping();
+            } catch (Throwable throwable) {
+                isClosed = true;
+                if (moduleConnection != null){
+                    try {
+                        moduleConnection.close();
+                    } catch (Throwable ignored){
+                    }
+                }
+                moduleConnection = null;
+                throw throwable;
+            }
+            isClosed = false;
+
+        } catch (RemoteException remoteException) {
+            throw remoteException;
+
+        } catch (Throwable throwable) {
+            throw new ModuleConnectionException(
+                    service.getName(),
+                    moduleName,
+                    throwable
+            );
 
         } finally {
             refreshLock.unlock();
@@ -71,7 +101,7 @@ public final class ModuleConnectionSafeFromService<MC extends IModuleConnection>
     @Override
     public boolean isAliveConnection() {
         try {
-            return moduleConnection.ping();
+            return !moduleConnection.isClosed();
         } catch (Throwable ignored) {
         }
         return false;
@@ -98,7 +128,7 @@ public final class ModuleConnectionSafeFromService<MC extends IModuleConnection>
         try {
             if (isClosed) throw new IllegalStateException();
             isClosed = true;
-            if (!moduleConnection.isClosed()){
+            if (!moduleConnection.isClosed()) {
                 moduleConnection.close();
             }
             moduleConnection = null;
@@ -106,5 +136,11 @@ public final class ModuleConnectionSafeFromService<MC extends IModuleConnection>
         } finally {
             refreshLock.unlock();
         }
+    }
+
+    @Override
+    public void onCloseModuleConnection(int connId) {
+        isClosed = true;
+        moduleConnection = null;
     }
 }

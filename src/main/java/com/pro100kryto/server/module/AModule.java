@@ -13,6 +13,7 @@ import com.pro100kryto.server.settings.*;
 import org.eclipse.collections.impl.map.mutable.primitive.IntObjectHashMap;
 import org.jetbrains.annotations.NotNull;
 
+import java.rmi.RemoteException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class AModule <MC extends IModuleConnection> implements IModule<MC>,
@@ -95,28 +96,42 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
     }
 
     @NotNull
-    public final MC getModuleConnection(){
+    public final MC getModuleConnection() throws RemoteException {
         if (getLiveCycle().getStatus().isNotInitialized()){
             throw new IllegalStateException("Module is not initialized");
         }
 
         if (moduleConnectionMultipleEnabled || moduleConnectionMap.isEmpty()){
-            return _createModuleConnection();
+            try {
+                return _createModuleConnection();
+
+            } catch (RemoteException remoteException){
+                throw remoteException;
+
+            } catch (Throwable throwable){
+                throw new ModuleConnectionException(
+                        service.getName(),
+                        getName(),
+                        throwable
+                );
+            }
         }
 
         return moduleConnectionMap.get(moduleConnectionCounter.get());
     }
 
-    private MC _createModuleConnection(){
+    private MC _createModuleConnection() throws Throwable {
         if (moduleConnectionMap.size() >= moduleConnectionMultipleMaxCount){
             throw new IllegalStateException("No more space for connections");
         }
+        final int connId = moduleConnectionCounter.incrementAndGet();
         final MC mc = createModuleConnection(new ModuleConnectionParams(
-                moduleConnectionCounter.incrementAndGet(),
+                connId,
                 logger,
                 this
         ));
-        moduleConnectionMap.put(mc.getId(), mc);
+
+        moduleConnectionMap.put(connId, mc);
         return mc;
     }
 
@@ -159,7 +174,7 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
     }
 
     @NotNull
-    protected abstract MC createModuleConnection(ModuleConnectionParams params);
+    protected abstract MC createModuleConnection(ModuleConnectionParams params) throws Throwable;
 
     @Override
     public void onCloseModuleConnection(int id) {
@@ -251,7 +266,9 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
             settingsManager.removeAllListeners();
 
             while (!moduleConnectionMap.isEmpty()){
-                moduleConnectionMap.iterator().next().close();
+                final MC mc = moduleConnectionMap.iterator().next();
+                mc.close();
+                moduleConnectionMap.remove(mc.getId());
             }
 
             liveCycleController.destroy();

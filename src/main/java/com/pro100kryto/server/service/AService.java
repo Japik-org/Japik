@@ -11,6 +11,7 @@ import com.pro100kryto.server.settings.*;
 import org.eclipse.collections.impl.map.mutable.primitive.IntObjectHashMap;
 import org.jetbrains.annotations.NotNull;
 
+import java.rmi.RemoteException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class AService <SC extends IServiceConnection> implements IService<SC>,
@@ -121,12 +122,13 @@ public abstract class AService <SC extends IServiceConnection> implements IServi
         if (serviceConnectionMap.size() >= serviceConnectionMultipleMaxCount){
             throw new IllegalStateException("No more space for connections");
         }
+        final int scId = serviceConnectionCounter.incrementAndGet();
         final SC sc = createServiceConnection(new ServiceConnectionParams(
-                serviceConnectionCounter.incrementAndGet(),
+                scId,
                 logger,
                 this
         ));
-        serviceConnectionMap.put(sc.getId(), sc);
+        serviceConnectionMap.put(scId, sc);
         return sc;
     }
 
@@ -261,7 +263,13 @@ public abstract class AService <SC extends IServiceConnection> implements IServi
             settingsManager.removeAllListeners();
 
             while (!serviceConnectionMap.isEmpty()){
-                serviceConnectionMap.iterator().next().close();
+                final int scId = serviceConnectionMap.keysView().intIterator().next();
+                try {
+                    final SC sc = serviceConnectionMap.get(scId);
+                    sc.close();
+                } catch (Throwable ignored){
+                }
+                serviceConnectionMap.remove(scId);
             }
 
             liveCycleController.destroy();

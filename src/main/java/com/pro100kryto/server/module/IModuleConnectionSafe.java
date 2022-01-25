@@ -1,13 +1,19 @@
 package com.pro100kryto.server.module;
 
 import java.io.Closeable;
+import java.rmi.RemoteException;
 
 public interface IModuleConnectionSafe <MC extends IModuleConnection> extends Closeable {
     String getModuleName();
 
-    void refreshConnection() throws Throwable;
+    /**
+     * @throws ModuleNotFoundException
+     * @throws ClassCastException - wrong module type
+     * @throws IllegalStateException - wrong module state
+     */
+    void refreshConnection() throws RemoteException;
     boolean isAliveConnection();
-    MC getModuleConnection() throws Throwable;
+    MC getModuleConnection() throws RemoteException;
 
     boolean isAutoReconnectEnabled();
     void setAutoReconnectEnabled(boolean enabled);

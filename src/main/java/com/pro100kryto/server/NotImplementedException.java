@@ -1,4 +1,4 @@
-package com.pro100kryto.server.exceptions;
+package com.pro100kryto.server;
 
 public class NotImplementedException extends RuntimeException{
     public NotImplementedException() {

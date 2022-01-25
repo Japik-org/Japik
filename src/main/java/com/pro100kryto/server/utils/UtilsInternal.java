@@ -1,7 +1,6 @@
 package com.pro100kryto.server.utils;
 
 import com.google.common.reflect.ClassPath;
-import com.pro100kryto.server.exceptions.ManifestNotFoundException;
 
 import java.io.File;
 import java.io.FileNotFoundException;

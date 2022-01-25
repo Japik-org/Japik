@@ -64,8 +64,11 @@ public abstract class AServiceConnectionSafe <SC extends IServiceConnection> imp
         try {
             if (isClosed) throw new IllegalStateException();
             isClosed = true;
-            if (!serviceConnection.isClosed()){
-                serviceConnection.close();
+            try {
+                if (!serviceConnection.isClosed()) {
+                    serviceConnection.close();
+                }
+            } catch (Throwable ignored){
             }
             serviceConnection = null;
 

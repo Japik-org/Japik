@@ -4,7 +4,7 @@ import com.pro100kryto.server.Constants;
 import com.pro100kryto.server.SharedDependency;
 import com.pro100kryto.server.SharedDependencyLord;
 import com.pro100kryto.server.Tenant;
-import com.pro100kryto.server.exceptions.ManifestNotFoundException;
+import com.pro100kryto.server.utils.ManifestNotFoundException;
 import com.pro100kryto.server.livecycle.LiveCycleStatus;
 import com.pro100kryto.server.logger.ILogger;
 import com.pro100kryto.server.service.IService;
@@ -281,7 +281,9 @@ public final class ModuleLoader {
         try {
 
             @Nullable final IModule<?> module = nameModuleMap.get(moduleName);
-            if (module == null) throw new ModuleNotFoundException(moduleName);
+            if (module == null) {
+                throw new ModuleNotFoundException(service.getName(), moduleName);
+            }
 
             logger.info("Deleting " + module.toString());
 
@@ -318,8 +320,16 @@ public final class ModuleLoader {
         }
     }
 
-    public IModule<?> getModule(String moduleName){
-        return nameModuleMap.get(moduleName);
+    /**
+     * @throws ModuleNotFoundException
+     * @throws ClassCastException
+     */
+    public <MC extends IModuleConnection> IModule<MC> getModule(String moduleName) throws ModuleNotFoundException {
+        final IModule<MC> module = (IModule<MC>) nameModuleMap.get(moduleName);
+        if (module == null){
+            throw new ModuleNotFoundException(service.getName(), moduleName);
+        }
+        return module;
     }
 
     public Iterable<String> getModuleNames(){

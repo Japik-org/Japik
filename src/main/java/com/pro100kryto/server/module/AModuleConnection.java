@@ -19,6 +19,8 @@ public abstract class AModuleConnection<M extends IModule<MC>, MC extends IModul
 
     protected boolean isClosed = false;
 
+    protected IModuleConnectionCloseListener closeListener;
+
     public AModuleConnection(@NotNull M module, ModuleConnectionParams params) {
         this.module = Objects.requireNonNull(module);
         this.callback = Objects.requireNonNull(params.getCallback());
@@ -57,7 +59,10 @@ public abstract class AModuleConnection<M extends IModule<MC>, MC extends IModul
         onClose();
         module = null;
 
-        callback.onCloseModuleConnection(id);
+        callback.onCloseModuleConnection(id); // parent module
+        if (closeListener != null) {
+            closeListener.onCloseModuleConnection(id);
+        }
     }
 
     @Override
@@ -80,6 +85,14 @@ public abstract class AModuleConnection<M extends IModule<MC>, MC extends IModul
         return true;
     }
 
-    protected void onClose(){}
+    protected void onClose(){
+    }
 
+    @Override
+    public void setCloseListener(IModuleConnectionCloseListener closeListener) {
+        this.closeListener = closeListener;
+        if (isClosed) {
+            closeListener.onCloseModuleConnection(id);
+        }
+    }
 }

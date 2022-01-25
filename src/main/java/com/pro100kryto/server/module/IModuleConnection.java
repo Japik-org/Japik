@@ -1,6 +1,5 @@
 package com.pro100kryto.server.module;
 
-
 import java.io.Closeable;
 
 public interface IModuleConnection extends Closeable {
@@ -14,4 +13,5 @@ public interface IModuleConnection extends Closeable {
 
     void close();
     boolean isClosed();
+    void setCloseListener(IModuleConnectionCloseListener closeListener);
 }
