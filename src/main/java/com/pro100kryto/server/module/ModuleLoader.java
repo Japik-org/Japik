@@ -77,10 +77,6 @@ public final class ModuleLoader {
             IllegalAccessException,
             SettingsApplyIncompleteException {
 
-        if (service.getLiveCycle().getStatus().is(LiveCycleStatus.AdvancedNames.NOT_INITIALIZED)){
-            throw new IllegalStateException();
-        }
-
         lock.lock();
         try {
 

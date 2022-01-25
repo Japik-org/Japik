@@ -1,15 +1,13 @@
 package com.pro100kryto.server.service;
 
 import com.pro100kryto.server.Tenant;
-import com.pro100kryto.server.livecycle.EmptyLiveCycleImpl;
-import com.pro100kryto.server.livecycle.ILiveCycle;
-import com.pro100kryto.server.livecycle.ILiveCycleImpl;
-import com.pro100kryto.server.livecycle.LiveCycleController;
+import com.pro100kryto.server.livecycle.*;
 import com.pro100kryto.server.logger.ILogger;
 import com.pro100kryto.server.module.*;
 import com.pro100kryto.server.settings.*;
 import org.eclipse.collections.impl.map.mutable.primitive.IntObjectHashMap;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.rmi.RemoteException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -86,6 +84,11 @@ public abstract class AService <SC extends IServiceConnection> implements IServi
     }
 
     @Override
+    public final <MC extends IModuleConnection> IModuleConnectionSafe<MC> createModuleConnectionSafe(String moduleName) {
+        return new ModuleConnectionSafeFromService<>(this, moduleName);
+    }
+
+    @Override
     public final Tenant asTenant() {
         return tenant;
     }
@@ -93,11 +96,6 @@ public abstract class AService <SC extends IServiceConnection> implements IServi
     @Override
     public final ModuleLoader getModuleLoader() {
         return moduleLoader;
-    }
-
-    @Override
-    public final  <MC extends IModuleConnection> ModuleConnectionSafeFromService<MC> createModuleConnectionSafe(String moduleName) {
-        return new ModuleConnectionSafeFromService<>(this, moduleName);
     }
 
     @Override
@@ -180,24 +178,71 @@ public abstract class AService <SC extends IServiceConnection> implements IServi
 
     // utils
 
-    protected final <T extends IModuleConnection> IModuleConnectionSafe<T> setupModuleConnectionSafe(
-            String moduleName){
+    protected final void initModuleOrThrow(String moduleName) throws ModuleNotFoundException, InitException {
+        final IModule<?> module = moduleLoader.getModule(moduleName);
+        if (!module.getLiveCycle().getStatus().isInitialized()){
+            module.getLiveCycle().init();
+        }
+    }
 
-        final ModuleConnectionSafeFromService<T> moduleConnectionSafe =
+    protected final void initModuleOrWarn(String moduleName) {
+        try {
+            initModuleOrThrow(moduleName);
+
+        } catch (Throwable throwable) {
+            logger.warn("Failed init module name='"+moduleName+"'", throwable);
+        }
+    }
+
+    protected final void startModuleOrThrow(String moduleName) throws ModuleNotFoundException, InitException, StartException {
+        final IModule<?> module = moduleLoader.getModule(moduleName);
+        if (!module.getLiveCycle().getStatus().isInitialized()){
+            module.getLiveCycle().init();
+        }
+        if (!module.getLiveCycle().getStatus().isStarted()){
+            module.getLiveCycle().start();
+        }
+    }
+
+    protected final void startModuleOrWarn(String moduleName) {
+        try {
+            startModuleOrThrow(moduleName);
+
+        } catch (Throwable throwable) {
+            logger.warn("Failed start module name='"+moduleName+"'", throwable);
+        }
+    }
+
+    protected final <T extends IModuleConnection>
+    IModuleConnectionSafe<T> setupModuleConnectionSafe(String moduleName){
+        final IModuleConnectionSafe<T> moduleConnectionSafe =
                 createModuleConnectionSafe(moduleName);
 
         if (!moduleConnectionSafe.isAliveConnection()) {
             try {
                 moduleConnectionSafe.refreshConnection();
-            } catch (Throwable throwable){
-                logger.exception(throwable, "Failed setup connection with module name='"+moduleName+"'");
+            } catch (Throwable throwable) {
+                logger.warn("Failed establish connection with module name='"+moduleName+"'", throwable);
             }
         }
+
         return moduleConnectionSafe;
     }
 
-    protected final <T extends IServiceConnection> IServiceConnectionSafe<T> setupServiceConnectionSafe(
-            String serviceName){
+    @Nullable
+    protected final <T extends IModuleConnection>
+    IModuleConnectionSafe<T> closeModuleConnection(@Nullable final IModuleConnectionSafe<T> moduleConnectionSafe) {
+        if (moduleConnectionSafe != null && !moduleConnectionSafe.isClosed()) {
+            try {
+                moduleConnectionSafe.close();
+            } catch (IllegalStateException ignored){
+            }
+        }
+        return null;
+    }
+
+    protected final <T extends IServiceConnection>
+    IServiceConnectionSafe<T> setupServiceConnectionSafe(String serviceName){
 
         final IServiceConnectionSafe<T> serviceConnectionSafe =
                 serviceCallback.createServiceConnectionSafe(serviceName);
@@ -205,11 +250,24 @@ public abstract class AService <SC extends IServiceConnection> implements IServi
         if (!serviceConnectionSafe.isAliveConnection()) {
             try {
                 serviceConnectionSafe.refreshConnection();
-            } catch (Throwable throwable){
-                logger.exception(throwable, "Failed setup connection with service name='"+serviceName+"'");
+            } catch (Throwable throwable) {
+                logger.warn("Failed establish connection with service name='"+serviceName+"'", throwable);
             }
         }
+
         return serviceConnectionSafe;
+    }
+
+    @Nullable
+    protected final <T extends IServiceConnection>
+    IServiceConnectionSafe<T> closeServiceConnection(@Nullable final IServiceConnectionSafe<T> serviceConnectionSafe) {
+        if (serviceConnectionSafe != null && !serviceConnectionSafe.isClosed()) {
+            try {
+                serviceConnectionSafe.close();
+            } catch (IllegalStateException ignored){
+            }
+        }
+        return null;
     }
 
     // LiveCycle
