@@ -25,6 +25,10 @@ public final class LoggerEmpty implements ILogger{
     }
 
     @Override
+    public void warn(String msg, Throwable cause) {
+    }
+
+    @Override
     public void info(String msg) {
     }
 

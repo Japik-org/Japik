@@ -15,8 +15,8 @@ public final class LoggerSystemOut implements ILogger{
 
     @Override
     public void exception(Throwable ex, String description) {
-        ex.printStackTrace();
         error(description);
+        ex.printStackTrace();
     }
 
     @Override
@@ -27,6 +27,12 @@ public final class LoggerSystemOut implements ILogger{
     @Override
     public void warn(String msg) {
         raw("(warn) "+msg);
+    }
+
+    @Override
+    public void warn(String msg, Throwable cause) {
+        warn(msg);
+        cause.printStackTrace();
     }
 
     @Override

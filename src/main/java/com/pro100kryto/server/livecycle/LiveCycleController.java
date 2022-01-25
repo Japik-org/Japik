@@ -341,6 +341,6 @@ public final class LiveCycleController implements ILiveCycle {
 
     private void setStatus(LiveCycleStatus.AdvancedNames statusName){
         this.status.set(statusName);
-        logger.info(elementName+" status="+status);
+        logger.info(elementName+" status = "+status);
     }
 }

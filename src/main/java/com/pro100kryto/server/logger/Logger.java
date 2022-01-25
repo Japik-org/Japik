@@ -16,17 +16,45 @@ public class Logger implements ILogger {
 
     @Override
     public void exception(Throwable ex) {
+        final StringBuilder stringBuilder = new StringBuilder();
+        appendExceptionWithCause(stringBuilder, ex);
+
+        loggerManager.write(name, MsgType.EXCEPTION, stringBuilder.toString());
         ex.printStackTrace();
-        loggerManager.write(name, MsgType.EXCEPTION, ex.getClass().getSimpleName()+" : "+ex.getMessage()
-                +(ex.getCause()!=null ? " CAUSE: "+ex.getCause().getMessage() : ""));
     }
 
     @Override
     public void exception(Throwable ex, String description) {
+        final StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append("DESCRIPTION: ")
+                .append(description)
+                .append(System.lineSeparator());
+        appendExceptionWithCause(stringBuilder, ex);
+
+        loggerManager.write(name, MsgType.EXCEPTION, stringBuilder.toString());
         ex.printStackTrace();
-        loggerManager.write(name, MsgType.EXCEPTION, ex.getClass().getSimpleName()+" : "+ex.getMessage()
-                +(ex.getCause()!=null ? " CAUSE: "+ex.getCause().getMessage() : "")
-                +" DESCRIPTION: "+description);
+    }
+
+    private void appendSingleException(StringBuilder stringBuilder, Throwable ex) {
+        stringBuilder.append(ex.getClass().getSimpleName())
+                .append(" : ")
+                .append(ex.getMessage())
+                .append(System.lineSeparator());
+    }
+
+    private void appendExceptionWithCause(StringBuilder stringBuilder, Throwable ex) {
+        appendSingleException(stringBuilder, ex);
+
+        Throwable cause = ex;
+        int count = 0;
+        while ((cause = cause.getCause()) != null) {
+            stringBuilder.append("CAUSE: ");
+            appendSingleException(stringBuilder, cause);
+            if (++count == 32) {
+                stringBuilder.append("(cause overflow)");
+                break;
+            }
+        }
     }
 
     @Override
@@ -37,6 +65,17 @@ public class Logger implements ILogger {
     @Override
     public void warn(String msg) {
         loggerManager.write(name, MsgType.WARN, msg);
+    }
+
+    @Override
+    public void warn(String msg, Throwable cause) {
+        final StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append(msg)
+                .append(System.lineSeparator())
+                .append("WARN CAUSE: ");
+        appendExceptionWithCause(stringBuilder, cause);
+        warn(stringBuilder.toString());
+        cause.printStackTrace();
     }
 
     @Override

@@ -120,6 +120,6 @@ public final class LiveCycleStatus {
 
     @Override
     public String toString() {
-        return basicName.toString() + '(' + advancedName.toString() + ')';
+        return basicName.toString() + " (" + advancedName.toString() + ')';
     }
 }
