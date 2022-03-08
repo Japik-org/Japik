@@ -1,6 +1,6 @@
 package com.pro100kryto.server.module;
 
-import com.pro100kryto.server.Tenant;
+import com.pro100kryto.server.dep.Tenant;
 import com.pro100kryto.server.logger.ILogger;
 import com.pro100kryto.server.service.IService;
 import lombok.AllArgsConstructor;

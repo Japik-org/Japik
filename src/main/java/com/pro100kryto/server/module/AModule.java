@@ -1,12 +1,22 @@
 package com.pro100kryto.server.module;
 
-import com.pro100kryto.server.Tenant;
-import com.pro100kryto.server.livecycle.*;
-import com.pro100kryto.server.logger.ILogger;
+import com.pro100kryto.server.element.AElement;
+import com.pro100kryto.server.element.ElementNotFoundException;
+import com.pro100kryto.server.element.ElementType;
+import com.pro100kryto.server.livecycle.EmptyLiveCycleImpl;
+import com.pro100kryto.server.livecycle.InitException;
+import com.pro100kryto.server.livecycle.StartException;
+import com.pro100kryto.server.livecycle.controller.ILiveCycleImplId;
+import com.pro100kryto.server.livecycle.controller.LiveCycleController;
 import com.pro100kryto.server.service.IService;
 import com.pro100kryto.server.service.IServiceConnection;
 import com.pro100kryto.server.service.IServiceConnectionSafe;
-import com.pro100kryto.server.settings.*;
+import com.pro100kryto.server.settings.ISettingsManagerCallback;
+import com.pro100kryto.server.settings.IntegerSettingListener;
+import com.pro100kryto.server.settings.SettingListenerContainer;
+import com.pro100kryto.server.settings.SettingListenerEventMask;
+import lombok.Getter;
+import lombok.Setter;
 import org.eclipse.collections.impl.map.mutable.primitive.IntObjectHashMap;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -14,19 +24,10 @@ import org.jetbrains.annotations.Nullable;
 import java.rmi.RemoteException;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public abstract class AModule <MC extends IModuleConnection> implements IModule<MC>,
+public abstract class AModule <MC extends IModuleConnection> extends AElement implements IModule<MC>,
         ISettingsManagerCallback, IModuleConnectionCallback {
 
     protected final IService<?> service;
-    private final Tenant tenant;
-    protected final String type;
-    protected final String name;
-    protected final ILogger logger;
-
-    private final LiveCycleController liveCycleController, liveCycleControllerInternal;
-
-    protected final Settings settings;
-    protected final SettingsManager settingsManager;
     protected final BaseModuleSettings baseSettings;
 
     private boolean moduleConnectionMultipleEnabled;
@@ -35,26 +36,15 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
     private AtomicInteger moduleConnectionCounter;
 
     public AModule(ModuleParams moduleParams){
+        super(
+                ElementType.Module,
+                moduleParams.getModuleType(),
+                moduleParams.getModuleName(),
+                moduleParams.getModuleAsTenant(),
+                moduleParams.getLogger()
+        );
+
         service = moduleParams.getService();
-        type = moduleParams.getModuleType();
-        name = moduleParams.getModuleName();
-        logger = moduleParams.getLogger();
-        tenant = moduleParams.getModuleAsTenant();
-
-        // live cycle
-        // 3
-        liveCycleController = new LiveCycleController.Builder()
-                .setDefaultImpl(createDefaultLiveCycleImpl()) // 4
-                .build(logger, "Module name='"+name+"'");
-
-        // 1
-        liveCycleControllerInternal = new LiveCycleController.Builder()
-                .setDefaultImpl(new AModuleLiveCycleInternalImpl()) // 2
-                .build(logger, "Module (internal) name='"+name+"'");
-
-        // settings
-        settings = new Settings();
-        settingsManager = new SettingsManager(settings, this, logger);
         baseSettings = new BaseModuleSettings(settingsManager.getSettings());
     }
 
@@ -64,33 +54,13 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
     }
 
     @Override
-    public final String getType() {
-        return type;
-    }
-
-    @Override
-    public final String getName() {
-        return name;
-    }
-
-    @Override
-    public final Settings getSettings() {
-        return settingsManager.getSettings();
-    }
-
-    @Override
     public final ModuleConnectionSafeFromService<MC> getModuleConnectionSafe() {
         return new ModuleConnectionSafeFromService<>(service, this.name);
     }
 
     @Override
-    public final Tenant asTenant() {
-        return tenant;
-    }
-
-    @Override
-    public final String toString() {
-        return "Module { type:'"+type+"', name:'"+name+"', serviceName:'"+service.getName()+"' }";
+    public String toString() {
+        return super.toString() + " serviceName='"+service.getName();
     }
 
     @NotNull
@@ -118,6 +88,13 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
         return moduleConnectionMap.get(moduleConnectionCounter.get());
     }
 
+    @Override
+    protected void initLiveCycleController(LiveCycleController liveCycleController) {
+        super.initLiveCycleController(liveCycleController);
+        liveCycleController.putImplAll(new ModuleLiveCycleImpl());
+        liveCycleController.putImplAll(new LowerModuleLiveCycleImpl());
+    }
+
     private MC _createModuleConnection() throws Throwable {
         if (moduleConnectionMap.size() >= moduleConnectionMultipleMaxCount){
             throw new IllegalStateException("No more space for connections");
@@ -133,44 +110,6 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
         return mc;
     }
 
-    // virtual
-
-    @NotNull
-    protected ILiveCycleImpl createDefaultLiveCycleImpl(){
-        return EmptyLiveCycleImpl.instance;
-    }
-
-    protected void setupLiveCycleControllerBeforeInit(LiveCycleController liveCycleController){
-    }
-
-    protected void setupSettingsBeforeInit() throws Throwable {
-        settingsManager.setListener(new SettingListenerContainer(
-                BaseModuleSettings.KEY_AUTO_FIX_BROKEN_ENABLED,
-                new BooleanSettingListener() {
-                    @Override
-                    public void apply2(String key, Boolean val, SettingListenerEventMask eventMask) {
-                        liveCycleController.setEnabledAutoFixBroken(val);
-                    }
-                },
-                Boolean.toString(false)
-        ));
-
-        if (baseSettings.isConnectionMultipleEnabled()) {
-            settingsManager.setListener(new SettingListenerContainer(
-                    BaseModuleSettings.KEY_CONNECTION_MULTIPLE_COUNT,
-                    new IntegerSettingListener() {
-                        @Override
-                        public void apply2(String key, Integer val, SettingListenerEventMask eventMask) {
-                            final IntObjectHashMap<MC> newMap = new IntObjectHashMap<>(val);
-                            newMap.putAll(moduleConnectionMap);
-                            moduleConnectionMap = newMap;
-                            moduleConnectionMultipleMaxCount = val;
-                        }
-                    }
-            ));
-        }
-    }
-
     @NotNull
     protected abstract MC createModuleConnection(ModuleConnectionParams params) throws Throwable;
 
@@ -179,15 +118,21 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
         moduleConnectionMap.remove(id);
     }
 
-    // utils
+    //region utils
 
-    protected final void startModuleOrThrow(String moduleName) throws ModuleNotFoundException, InitException, StartException {
-        final IModule<?> module = service.getModuleLoader().getModule(moduleName);
+    protected final void initModuleOrWarn(String moduleName) {
+        try {
+            initModuleOrThrow(moduleName);
+
+        } catch (Throwable throwable) {
+            logger.warn("Failed init module name='"+moduleName+"'", throwable);
+        }
+    }
+
+    protected final void initModuleOrThrow(String moduleName) throws ElementNotFoundException, InitException {
+        final IModule<?> module = service.getModuleLoader().getOrThrow(moduleName);
         if (!module.getLiveCycle().getStatus().isInitialized()){
             module.getLiveCycle().init();
-        }
-        if (!module.getLiveCycle().getStatus().isStarted()){
-            module.getLiveCycle().start();
         }
     }
 
@@ -200,19 +145,13 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
         }
     }
 
-    protected final void initModuleOrThrow(String moduleName) throws ModuleNotFoundException, InitException {
-        final IModule<?> module = service.getModuleLoader().getModule(moduleName);
+    protected final void startModuleOrThrow(String moduleName) throws ElementNotFoundException, InitException, StartException {
+        final IModule<?> module = service.getModuleLoader().getOrThrow(moduleName);
         if (!module.getLiveCycle().getStatus().isInitialized()){
             module.getLiveCycle().init();
         }
-    }
-
-    protected final void initModuleOrWarn(String moduleName) {
-        try {
-            initModuleOrThrow(moduleName);
-
-        } catch (Throwable throwable) {
-            logger.warn("Failed init module name='"+moduleName+"'", throwable);
+        if (!module.getLiveCycle().getStatus().isStarted()){
+            module.getLiveCycle().start();
         }
     }
 
@@ -249,7 +188,7 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
     IServiceConnectionSafe<T> setupServiceConnectionSafe(String serviceName){
 
         final IServiceConnectionSafe<T> serviceConnectionSafe =
-                service.getCallback().createServiceConnectionSafe(serviceName);
+                service.getServiceCallback().createServiceConnectionSafe(serviceName);
 
         if (!serviceConnectionSafe.isAliveConnection()) {
             try {
@@ -274,25 +213,54 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
         return null;
     }
 
-    // LiveCycle
+    //endregion
 
-    @Override
-    public final ILiveCycle getLiveCycle() {
-        return liveCycleControllerInternal;
-    }
-
-    private final class AModuleLiveCycleInternalImpl implements ILiveCycleImpl {
+    protected final class ModuleLiveCycleImpl extends EmptyLiveCycleImpl implements ILiveCycleImplId {
+        @Getter
+        private final String name = "Module::NORMAL";
+        @Getter @Setter
+        private int priority = LiveCycleController.PRIORITY_NORMAL;
 
         @Override
         public void init() throws Throwable {
-            setupSettingsBeforeInit();
+            if (baseSettings.isConnectionMultipleEnabled()) {
+                settingsManager.setListener(new SettingListenerContainer(
+                        BaseModuleSettings.KEY_CONNECTION_MULTIPLE_COUNT,
+                        new IntegerSettingListener() {
+                            @Override
+                            public void apply2(String key, Integer val, SettingListenerEventMask eventMask) {
+                                final IntObjectHashMap<MC> newMap = new IntObjectHashMap<>(val);
+                                newMap.putAll(moduleConnectionMap);
+                                moduleConnectionMap = newMap;
+                                moduleConnectionMultipleMaxCount = val;
+                            }
+                        }
+                ));
+            }
+        }
 
-            setupLiveCycleControllerBeforeInit(liveCycleController);
-            liveCycleController.init();
-            settingsManager.applyIfChanged();
+        @Override
+        public void destroy() {
+            while (!moduleConnectionMap.isEmpty()){
+                final int scId = moduleConnectionMap.keysView().intIterator().next();
+                try {
+                    final MC sc = moduleConnectionMap.get(scId);
+                    sc.close();
+                } catch (Throwable ignored){
+                }
+                moduleConnectionMap.remove(scId);
+            }
+        }
+    }
 
-            // connection
+    protected final class LowerModuleLiveCycleImpl extends EmptyLiveCycleImpl implements ILiveCycleImplId {
+        @Getter
+        private final String name = "Module::LOWER";
+        @Getter @Setter
+        private int priority = LiveCycleController.PRIORITY_LOWER;
 
+        @Override
+        public void init() throws Throwable {
             moduleConnectionMultipleEnabled = baseSettings.isConnectionMultipleEnabled();
             moduleConnectionMultipleMaxCount = (baseSettings.isConnectionMultipleEnabled() ? baseSettings.getConnectionMultipleCount() : 1);
 
@@ -302,46 +270,6 @@ public abstract class AModule <MC extends IModuleConnection> implements IModule<
             if (baseSettings.isConnectionCreateAfterInitEnabled()){
                 _createModuleConnection();
             }
-        }
-
-        @Override
-        public void start() throws Throwable {
-            settingsManager.applyIfChanged();
-            liveCycleController.start();
-        }
-
-        @Override
-        public void stopSlow() throws Throwable {
-            liveCycleController.stopSlow();
-        }
-
-        @Override
-        public void stopForce() {
-            liveCycleController.stopForce();
-        }
-
-        @Override
-        public void destroy() {
-            settingsManager.removeAllListeners();
-
-            while (!moduleConnectionMap.isEmpty()){
-                final MC mc = moduleConnectionMap.iterator().next();
-                mc.close();
-                moduleConnectionMap.remove(mc.getId());
-            }
-
-            liveCycleController.destroy();
-            liveCycleController.setDefaultImpl();
-        }
-
-        @Override
-        public void announceStop() {
-            liveCycleController.announceStop();
-        }
-
-        @Override
-        public boolean canBeStoppedSafe() {
-            return liveCycleController.canBeStoppedSafe();
         }
     }
 }

@@ -31,12 +31,8 @@ public class ResolveDependenciesIncompleteException extends Throwable {
         return builder.isEmpty();
     }
 
-    public List<ResolveDependenciesIncompleteException> getCauses() {
-        return builder.causes;
-    }
 
     public static final class Builder{
-        private final List<ResolveDependenciesIncompleteException> causes = new ArrayList<>();
         private final ArrayList<Throwable> warningList = new ArrayList<>();
         private final ArrayList<Throwable> errorList = new ArrayList<>();
 
@@ -45,11 +41,7 @@ public class ResolveDependenciesIncompleteException extends Throwable {
         }
 
         public boolean hasWarnings(){
-            if (!warningList.isEmpty()) return true;
-            for (ResolveDependenciesIncompleteException cause : causes){
-                if (cause.hasWarnings()) return true;
-            }
-            return false;
+            return !warningList.isEmpty();
         }
 
         public void addError(Throwable throwable){
@@ -57,19 +49,16 @@ public class ResolveDependenciesIncompleteException extends Throwable {
         }
 
         public void addCause(ResolveDependenciesIncompleteException resolveDependenciesIncompleteException){
-            causes.add(resolveDependenciesIncompleteException);
+            errorList.addAll(resolveDependenciesIncompleteException.getErrorList());
+            warningList.addAll(resolveDependenciesIncompleteException.getWarningList());
         }
 
         public boolean hasErrors(){
-            if (!errorList.isEmpty()) return true;
-            for (ResolveDependenciesIncompleteException cause : causes){
-                if (cause.hasErrors()) return true;
-            }
-            return false;
+            return !errorList.isEmpty();
         }
 
         public boolean isEmpty(){
-            return warningList.isEmpty() && errorList.isEmpty() && causes.isEmpty();
+            return warningList.isEmpty() && errorList.isEmpty();
         }
 
         public ResolveDependenciesIncompleteException build(){

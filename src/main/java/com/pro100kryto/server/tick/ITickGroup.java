@@ -1,6 +1,6 @@
 package com.pro100kryto.server.tick;
 
-import com.pro100kryto.server.Tenant;
+import com.pro100kryto.server.dep.Tenant;
 import com.pro100kryto.server.livecycle.ILiveCycle;
 import com.pro100kryto.server.settings.SettingsManager;
 import org.jetbrains.annotations.Nullable;

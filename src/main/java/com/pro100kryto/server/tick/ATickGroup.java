@@ -1,10 +1,10 @@
 package com.pro100kryto.server.tick;
 
-import com.pro100kryto.server.Tenant;
+import com.pro100kryto.server.dep.Tenant;
 import com.pro100kryto.server.livecycle.EmptyLiveCycleImpl;
 import com.pro100kryto.server.livecycle.ILiveCycle;
 import com.pro100kryto.server.livecycle.ILiveCycleImpl;
-import com.pro100kryto.server.livecycle.LiveCycleController;
+import com.pro100kryto.server.livecycle.controller.LiveCycleController;
 import com.pro100kryto.server.logger.ILogger;
 import com.pro100kryto.server.settings.ISettingsManagerCallback;
 import com.pro100kryto.server.settings.SettingsManager;
@@ -32,7 +32,9 @@ public abstract class ATickGroup implements ITickCallback, ITickGroup, ISettings
         liveCycleController = new LiveCycleController.Builder()
                 .setLock(liveCycleLock)
                 .setDefaultImpl(getDefaultLiveCycleImpl())
-                .build(logger, "TickGroup #"+id);
+                .setLogger(logger)
+                .setElementName("TickGroup #"+id)
+                .build();
     }
 
     @Override

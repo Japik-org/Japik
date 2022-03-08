@@ -1,6 +1,6 @@
 package com.pro100kryto.server.tick;
 
-import com.pro100kryto.server.Tenant;
+import com.pro100kryto.server.dep.Tenant;
 import com.pro100kryto.server.logger.ILogger;
 import com.pro100kryto.server.logger.Loggers;
 import lombok.Getter;

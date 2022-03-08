@@ -1,14 +1,8 @@
 package com.pro100kryto.server.extension;
 
 
-import com.pro100kryto.server.Tenant;
-import com.pro100kryto.server.livecycle.ILiveCycle;
+import com.pro100kryto.server.element.IElement;
 
-public interface IExtension <EC extends IExtensionConnection> {
-    String getType();
-    ILiveCycle getLiveCycle();
-
+public interface IExtension <EC extends IExtensionConnection> extends IElement {
     EC createExtensionConnection();
-
-    Tenant asTenant();
 }

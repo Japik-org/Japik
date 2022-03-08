@@ -2,7 +2,6 @@ package com.pro100kryto.server.module;
 
 import com.pro100kryto.server.service.IService;
 import com.pro100kryto.server.service.ServiceLoader;
-import com.pro100kryto.server.service.ServiceNotFoundException;
 
 import java.rmi.RemoteException;
 import java.util.Objects;
@@ -62,37 +61,32 @@ public final class ModuleConnectionSafeFromLoader<MC extends IModuleConnection> 
         refreshLock.lock();
         try {
 
-            try {
-                // !! ClassCastException !!
-                final IService<?> service = serviceLoader.getService(serviceName);
-                final IModule<MC> module = service.getModuleLoader().getModule(moduleName);
+            // !! ClassCastException !!
+            final IService<?> service = serviceLoader.get(serviceName);
+            final IModule<MC> module = (IModule<MC>) service.getModuleLoader().getOrThrow(moduleName);
 
-                final MC oldMC = moduleConnection;
-                final MC newMC = module.getModuleConnection();
-                if (oldMC != newMC && oldMC != null && !oldMC.isClosed()) {
-                    oldMC.close();
-                }
-                moduleConnection = newMC;
-
-                try {
-                    moduleConnection.setCloseListener(this);
-                    moduleConnection.ping();
-                } catch (Throwable throwable) {
-                    isClosed = true;
-                    if (moduleConnection != null){
-                        try {
-                            moduleConnection.close();
-                        } catch (Throwable ignored){
-                        }
-                    }
-                    moduleConnection = null;
-                    throw throwable;
-                }
-                isClosed = false;
-
-            } catch (ServiceNotFoundException serviceNotFoundException) {
-                throw new ModuleNotFoundException(serviceName, moduleName);
+            final MC oldMC = moduleConnection;
+            final MC newMC = module.getModuleConnection();
+            if (oldMC != newMC && oldMC != null && !oldMC.isClosed()) {
+                oldMC.close();
             }
+            moduleConnection = newMC;
+
+            try {
+                moduleConnection.setCloseListener(this);
+                moduleConnection.ping();
+            } catch (Throwable throwable) {
+                isClosed = true;
+                if (moduleConnection != null){
+                    try {
+                        moduleConnection.close();
+                    } catch (Throwable ignored){
+                    }
+                }
+                moduleConnection = null;
+                throw throwable;
+            }
+            isClosed = false;
 
         } catch (RemoteException remoteException) {
             throw remoteException;

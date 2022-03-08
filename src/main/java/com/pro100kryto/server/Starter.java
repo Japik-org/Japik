@@ -55,7 +55,7 @@ public final class Starter {
 
                 for(final String extType: extTypes){
                     try {
-                        final IExtension<?> extension = extensionLoader.createExtension(extType);
+                        final IExtension<?> extension = extensionLoader.load(extType, extType, null);
                     } catch (Throwable e) {
                         logger.exception(e, "Failed add extension");
                     }
@@ -69,7 +69,7 @@ public final class Starter {
                 for(final String extType: extTypes){
                     final IExtension<?> extension;
                     try {
-                        extension = extensionCreator.createExtension(extType);
+                        extension = extensionCreator.load(extType, extType, null);
                     } catch (Throwable e) {
                         logger.exception(e, "Failed add extension");
                         continue;

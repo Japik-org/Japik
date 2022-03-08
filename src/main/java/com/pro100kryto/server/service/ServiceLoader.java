@@ -1,409 +1,98 @@
 package com.pro100kryto.server.service;
 
-import com.pro100kryto.server.*;
-import com.pro100kryto.server.utils.ManifestNotFoundException;
+import com.pro100kryto.server.Server;
+import com.pro100kryto.server.dep.DependencyLord;
+import com.pro100kryto.server.dep.ElementImplJarDependency;
+import com.pro100kryto.server.dep.ServiceImplJarDependency;
+import com.pro100kryto.server.dep.Tenant;
+import com.pro100kryto.server.element.AElementLoader;
+import com.pro100kryto.server.element.ElementNotFoundException;
+import com.pro100kryto.server.element.ElementType;
 import com.pro100kryto.server.logger.ILogger;
 import com.pro100kryto.server.logger.LoggerAlreadyExistsException;
 import com.pro100kryto.server.module.ModuleLoader;
-import com.pro100kryto.server.utils.ResolveDependenciesIncompleteException;
-import com.pro100kryto.server.utils.UtilsInternal;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.lang.instrument.IllegalClassFormatException;
 import java.lang.reflect.Constructor;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.*;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.jar.Attributes;
-import java.util.jar.JarFile;
-import java.util.jar.Manifest;
 
-public final class ServiceLoader {
-    private final Server server;
-    private final SharedDependencyLord sharedDependencyLord;
-    private final ClassLoader baseClassLoader;
-    //private final ThreadGroup parentThreadGroup;
-    private final ILogger logger;
+public final class ServiceLoader extends AElementLoader<IService<?>> {
 
-    private final Map<String, IService<?>> nameServiceMap = Collections.synchronizedMap(new HashMap<>());
-
-    // a) base <- public/shared <- private
-    // b) base <- private
-    private final Map<String, URLClassLoader> namePrivateCLMap = new HashMap<>();
-
-    private final ReentrantLock lock = new ReentrantLock();
-
-    public ServiceLoader(Server server,
-                         SharedDependencyLord sharedDependencyLord,
-                         ClassLoader baseClassLoader,
-                         //ThreadGroup parentThreadGroup,
-                         ILogger logger) {
-        this.server = server;
-        this.sharedDependencyLord = sharedDependencyLord;
-        this.baseClassLoader = baseClassLoader;
-        //this.parentThreadGroup = parentThreadGroup;
-        this.logger = logger;
+    public ServiceLoader(Server server, Path corePath, DependencyLord dependencyLord, ClassLoader baseClassLoader, ILogger logger) {
+        super(ElementType.Service, server, corePath, dependencyLord, baseClassLoader, logger);
     }
 
-    public <SC extends IServiceConnection> IService<SC> createService(String serviceType, String serviceName) throws
-            ServiceAlreadyExistsException,
-            IOException,
-            ResolveDependenciesIncompleteException,
-            IllegalServiceFormatException,
-            IllegalAccessException {
+    protected ServiceImplJarDependency.BuilderByType createDependencyBuilderByType(String elSubtype, String elName, @Nullable String elVersion) {
 
-        if (server.getLiveCycle().getStatus().isNotInitialized()){
-            throw new IllegalStateException();
-        }
+        final ServiceImplJarDependency.BuilderByType implDepBuilder =
+                new ServiceImplJarDependency.BuilderByType(corePath);
+        implDepBuilder
+                .setElementSubtype(elSubtype)
+                .setElementVersion(elVersion)
+                .setElementName(elName);
 
-        lock.lock();
-        try {
-
-            {
-                final IService<?> existingService = nameServiceMap.get(serviceName);
-                if (existingService != null) {
-                    throw new ServiceAlreadyExistsException(existingService);
-                }
-            }
-
-            // define service files
-            final File serviceFile = Paths.get(sharedDependencyLord.getCorePath().toString(),
-                    "services",
-                    serviceType.toLowerCase() + "-service.jar").toFile();
-            if (!serviceFile.exists()) {
-                throw new FileNotFoundException(serviceFile.getCanonicalPath() + " not found");
-            }
-
-            final String serviceConnectionType;
-            {
-                String serviceConnectionType2 = serviceType;
-                final JarFile jarFile = new JarFile(serviceFile);
-                final Manifest manifest = jarFile.getManifest();
-                if (manifest == null) { // manifest does not exist
-                    logger.warn("Manifest not found for service Type = " + serviceType);
-                } else {
-                    final Attributes attributes = manifest.getMainAttributes();
-                    final String v = attributes.getValue("Connection-Type");
-                    if (v != null){
-                        serviceConnectionType2 = attributes.getValue("Connection-Type");
-                    }
-                }
-                serviceConnectionType = serviceConnectionType2;
-            }
-
-            final Path serviceConnectionFilePath = Paths.get(sharedDependencyLord.getCorePath().toString(),
-                    "services",
-                    serviceConnectionType.toLowerCase() + "-service-connection.jar");
-
-            final File serviceConnectionFile = serviceConnectionFilePath.toFile();
-            if (!serviceConnectionFile.exists()) {
-                logger.warn(serviceConnectionFile.getCanonicalPath() + " not found");
-            }
-
-            // rent service-connection
-            final Tenant serviceAsTenant = new Tenant("Service name='" + serviceName + "'");
-            final SharedDependency connDependency = sharedDependencyLord.rentSharedDep(
-                    serviceAsTenant,
-                    serviceConnectionFile.toPath()
-            );
-
-            // try resolve or release
-            try {
-                try {
-                    ResolveDependenciesIncompleteException.Builder incompleteBuilder = new ResolveDependenciesIncompleteException.Builder();
-
-                    // resolve
-                    if (serviceConnectionFile.exists() && !connDependency.isResolved()) {
-                        try {
-                            connDependency.resolve();
-                            // !! IOException !!
-
-                        } catch (ManifestNotFoundException warningException) {
-                            incompleteBuilder.addWarning(warningException);
-
-                        } catch (ResolveDependenciesIncompleteException resolveDependenciesIncompleteException) {
-                            incompleteBuilder.addCause(resolveDependenciesIncompleteException);
-                            if (resolveDependenciesIncompleteException.hasErrors()) {
-                                throw incompleteBuilder.build();
-                            }
-                        }
-                    }
-
-                    // setup private deps
-                    final ArrayList<Path> privateClassPathList = new ArrayList<>();
-
-                    try {
-                        UtilsInternal.readClassPathRecursively(
-                                serviceFile,
-                                sharedDependencyLord.getCorePath(),
-                                privateClassPathList, // out
-                                true);
-
-                    } catch (ManifestNotFoundException warningException) {
-                        incompleteBuilder.addWarning(warningException);
-
-                    } catch (ResolveDependenciesIncompleteException resolveDependenciesIncompleteException) {
-                        incompleteBuilder.addCause(resolveDependenciesIncompleteException);
-                        if (resolveDependenciesIncompleteException.hasErrors()) {
-                            throw incompleteBuilder.build();
-                        }
-                    }
-
-                    final URLClassLoader privateDepsClassLoader = new URLClassLoader(
-                            (URL[]) Arrays.stream(privateClassPathList.toArray(new Path[0]))
-                                    .map((path) -> {
-                                        try {
-                                            return path.toUri().toURL();
-                                        } catch (MalformedURLException ignored) {
-                                        }
-                                        return null;
-                                    }).filter(Objects::nonNull)
-                                    .toArray(URL[]::new),
-                            (connDependency.isResolved() ? connDependency.getClassLoader() : baseClassLoader)
-                    );
-
-                    /*
-                    // create thread group
-                    final ThreadGroup serviceThreadGroup = new ThreadGroup(
-                            parentThreadGroup,
-                            serviceName+"Service"
-                    );
-                    nameThreadGroupMap.put(serviceName, serviceThreadGroup);
-                     */
-
-                    // load service class
-                    final String servicePkgName;
-                    {
-                        String pkgName;
-                        try {
-                            pkgName = UtilsInternal.getJarAttrVal(new JarFile(serviceFile), "Base-Package");
-                        } catch (Throwable throwable) {
-                            pkgName = Constants.BASE_PACKET_NAME;
-                        }
-                        servicePkgName = pkgName + ".services." + serviceType.toLowerCase();
-                    }
-                    /*
-                    final String serviceConnPkgName;
-                    {
-                        String pkgName;
-                        try {
-                            pkgName = UtilsInternal.getJarAttrVal(new JarFile(serviceConnectionFile), "Base-Package");
-                        } catch (Throwable throwable) {
-                            pkgName = Constants.BASE_PACKET_NAME;
-                        }
-                        serviceConnPkgName = pkgName + ".services." + serviceType.toLowerCase()+".connection";
-                    }
-                    */
-                    final Class<?> serviceClass = Class.forName(
-                            servicePkgName + "." + serviceType + "Service",
-                            true, privateDepsClassLoader
-                    );
-                    if (!IService.class.isAssignableFrom(serviceClass))
-                        throw new IllegalClassFormatException("Is not assignable to IService");
-                    final Constructor<?> ctor = serviceClass.getConstructor(
-                            ServiceParams.class
-                    );
-
-                    // load packages
-                    UtilsInternal.loadAllClasses(
-                            privateDepsClassLoader,
-                            serviceFile.toURI().toURL(),
-                            servicePkgName
-                    );
-
-                    privateClassPathList
-                            .forEach((path -> {
-                                try {
-                                    UtilsInternal.loadAllClasses(
-                                            privateDepsClassLoader,
-                                            path.toUri().toURL()
-                                    );
-                                } catch (IOException ignored) {
-                                }
-                            }));
-
-                    // create service object
-                    final IService<SC> service = (IService<SC>) ctor.newInstance(
-                            new ServiceParams(
-                                    new ServiceCallback(serviceName, serviceAsTenant),
-                                    new ModuleLoader.Builder(
-                                            sharedDependencyLord,
-                                            privateDepsClassLoader,
-                                            logger),
-                                    serviceType, serviceName,
-                                    logger,
-                                    serviceAsTenant
-                            )
-                    );
-
-                    // fill maps
-                    nameServiceMap.put(serviceName, service);
-                    namePrivateCLMap.put(serviceName, privateDepsClassLoader);
-
-                    logger.info("New service created. " + service.toString());
-                    return service;
-
-                } catch (IllegalAccessException illegalAccessException) {
-                    throw illegalAccessException;
-
-                } catch (ClassCastException |
-                        ReflectiveOperationException |
-                        IllegalClassFormatException formatException) {
-                    throw new IllegalServiceFormatException(formatException);
-                }
-
-            } catch (Throwable throwable){
-                /*
-                final ThreadGroup serviceThreadGroup = nameThreadGroupMap.remove(serviceName);
-                if (serviceThreadGroup != null) {
-                    try {
-                        serviceThreadGroup.interrupt();
-                        serviceThreadGroup.stop();
-                        serviceThreadGroup.destroy();
-                    } catch (Throwable throwable) {
-                        logger.writeException(throwable);
-                    }
-                }
-                */
-                sharedDependencyLord.releaseSharedDeps(serviceAsTenant);
-                nameServiceMap.remove(serviceName);
-                try {
-                    namePrivateCLMap.remove(serviceName).close();
-                } catch (NullPointerException ignored) {
-                } catch (Throwable throwable2){
-                    logger.exception(throwable2);
-                }
-
-                throw throwable;
-            }
-
-        } finally {
-            lock.unlock();
-        }
+        return implDepBuilder;
     }
 
-    public void deleteService(String serviceName) throws ServiceNotFoundException{
-        if (server.getLiveCycle().getStatus().isNotInitialized()){
-            throw new IllegalStateException();
-        }
+    @Override
+    protected ElementImplJarDependency.BuilderByUrl createDependencyBuilderByUrl(URL elUrl, String elName) {
+        final ServiceImplJarDependency.BuilderByUrl implDepBuilder =
+                new ServiceImplJarDependency.BuilderByUrl();
+        implDepBuilder
+                .setCorePath(corePath)
+                .setUrl(elUrl)
+                .setElementName(elName);
 
-        lock.lock();
-        try {
-
-            @Nullable final IService<?> service = nameServiceMap.get(serviceName);
-            if (service == null) {
-                throw new ServiceNotFoundException(serviceName);
-            }
-
-            logger.info("Deleting " + service.toString());
-
-            if (service.getLiveCycle().getStatus().isStarted() || service.getLiveCycle().getStatus().isBroken()) {
-                try {
-                    service.getLiveCycle().stopForce();
-                } catch (Throwable throwable) {
-                    logger.exception(throwable);
-                }
-            }
-
-            if (service.getLiveCycle().getStatus().isInitialized() || service.getLiveCycle().getStatus().isBroken()) {
-                try {
-                    service.getLiveCycle().destroy();
-                } catch (Throwable throwable) {
-                    logger.exception(throwable);
-                }
-            }
-
-            // TODO: ThreadGroup
-            /*
-            {
-                final ThreadGroup serviceThreadGroup = nameThreadGroupMap.get(serviceName);
-                if (serviceThreadGroup != null){
-                    serviceThreadGroup.interrupt();
-                    serviceThreadGroup.stop();
-                    serviceThreadGroup.destroy();
-                }
-            }
-            */
-
-            nameServiceMap.remove(serviceName);
-
-            try {
-                namePrivateCLMap.remove(serviceName).close();
-            } catch (IOException ioException) {
-                logger.exception(ioException, "Failed to close ClassLoader for Service name='" + serviceName + "'");
-            }
-
-            sharedDependencyLord.releaseSharedDeps(service.asTenant());
-
-            logger.info("Service name='" + serviceName + "' deleted");
-
-        } finally {
-            lock.unlock();
-        }
+        return implDepBuilder;
     }
 
-    /**
-     * @throws ServiceNotFoundException
-     * @throws ClassCastException
-     */
-    public <SC extends IServiceConnection> IService<SC> getService(String serviceName) throws ServiceNotFoundException {
-        final IService<SC> service = (IService<SC>) nameServiceMap.get(serviceName);
-        if (service == null){
-            throw new ServiceNotFoundException(serviceName);
-        }
-        return service;
-    }
+    @Override
+    protected IService<?> createElement(ElementImplJarDependency implDependency, String elName, Tenant elTenant) throws Throwable {
 
-    public Iterable<String> getServiceNames(){
-        return nameServiceMap.keySet();
-    }
+        //region load service class
+        final Class<?> clazz = Class.forName(
+                implDependency.getElementClassName(),
+                true,
+                implDependency.getClassLoader()
+        );
+        if (!IService.class.isAssignableFrom(clazz))
+            throw new IllegalClassFormatException("Is not assignable to IService");
+        final Constructor<?> ctor = clazz.getConstructor(
+                ServiceParams.class
+        );
+        //endregion
 
-    public Iterable<IService<?>> getServices(){
-        return nameServiceMap.values();
-    }
+        // region create element
+        final IService<?> element = (IService<?>) ctor.newInstance(
+                new ServiceParams(
+                        new ServiceLoader.ServiceCallback(elName, elTenant),
+                        new ModuleLoader.Builder(
+                                server,
+                                corePath,
+                                dependencyLord,
+                                implDependency.getClassLoader(),
+                                logger
+                        ),
+                        implDependency.getElementSubtype(),
+                        elName,
+                        logger,
+                        elTenant
+                )
+        );
+        //endregion
 
-    public int getServicesCount(){
-        return nameServiceMap.size();
-    }
-
-    public boolean existsService(String serviceName){
-        return nameServiceMap.containsKey(serviceName);
-    }
-
-    public void deleteAllServices(){
-        if (server.getLiveCycle().getStatus().isNotInitialized()){
-            throw new IllegalStateException();
-        }
-
-        lock.lock();
-        try{
-
-            while (!nameServiceMap.isEmpty()){
-                try {
-                    deleteService(nameServiceMap.keySet().iterator().next());
-                } catch (ServiceNotFoundException ignored) {
-                }
-            }
-
-        } finally {
-            lock.unlock();
-        }
+        return element;
     }
 
     private final class ServiceCallback implements IServiceCallback{
         private final String serviceName;
-        private final Tenant serviceAsTenant;
+        private final Tenant serviceTenant;
 
-        private ServiceCallback(String serviceName, Tenant serviceAsTenant) {
+        private ServiceCallback(String serviceName, Tenant serviceTenant) {
             this.serviceName = serviceName;
-            this.serviceAsTenant = serviceAsTenant;
+            this.serviceTenant = serviceTenant;
         }
 
         private String getLoggerName(String loggerSubName){
@@ -432,8 +121,8 @@ public final class ServiceLoader {
         }
 
         @Override
-        public <SC extends IServiceConnection> SC getServiceConnection(String serviceName) throws ServiceNotFoundException {
-            return (SC) getService(serviceName).getServiceConnection();
+        public <SC extends IServiceConnection> SC getServiceConnection(String serviceName) throws ElementNotFoundException {
+            return (SC) getOrThrow(serviceName).getServiceConnection();
         }
 
         @Override

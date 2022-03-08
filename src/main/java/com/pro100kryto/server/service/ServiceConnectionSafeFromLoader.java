@@ -29,7 +29,7 @@ public final class ServiceConnectionSafeFromLoader <SC extends IServiceConnectio
         refreshLock.lock();
         try {
             // !! ClassCastException !!
-            final IService<SC> service = serviceLoader.getService(serviceName);
+            final IService<SC> service = (IService<SC>) serviceLoader.getOrThrow(serviceName);
 
             final SC oldSC = serviceConnection;
             final SC newSC = service.getServiceConnection();

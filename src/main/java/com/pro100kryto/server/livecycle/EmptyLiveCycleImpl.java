@@ -1,19 +1,19 @@
 package com.pro100kryto.server.livecycle;
 
 
-public final class EmptyLiveCycleImpl implements ILiveCycleImpl {
+public class EmptyLiveCycleImpl implements ILiveCycleImpl {
     public static final EmptyLiveCycleImpl instance = new EmptyLiveCycleImpl();
 
     @Override
-    public void init() {
+    public void init() throws Throwable {
     }
 
     @Override
-    public void start() {
+    public void start() throws Throwable {
     }
 
     @Override
-    public void stopSlow() {
+    public void stopSlow() throws Throwable {
     }
 
     @Override

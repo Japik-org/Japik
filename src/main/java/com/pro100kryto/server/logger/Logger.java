@@ -79,6 +79,15 @@ public class Logger implements ILogger {
     }
 
     @Override
+    public void warn(Throwable cause) {
+        final StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append("WARN CAUSE: ");
+        appendExceptionWithCause(stringBuilder, cause);
+        warn(stringBuilder.toString());
+        cause.printStackTrace();
+    }
+
+    @Override
     public void info(String msg) {
         loggerManager.write(name, MsgType.INFO, msg);
     }

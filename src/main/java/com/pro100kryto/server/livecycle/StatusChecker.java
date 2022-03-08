@@ -10,25 +10,23 @@ public final class StatusChecker {
     public static void checkInit(LiveCycleStatus status){
         if (status.is(INITIALIZED) || status.is(STARTED))
             throw new IllegalStateException("Already initialized");
-        if (status.isBroken())
-            throw new IllegalStateException("Is broken");
+        //if (status.isBroken()) throw new IllegalStateException("Is broken");
     }
 
     /**
      * @throws IllegalStateException
      */
     public static void checkStart(LiveCycleStatus status){
-        if (status.is(NOT_INITIALIZED)) throw new IllegalStateException("Not initialized");
+        if (status.is(NOT_INITIALIZED)) throw new IllegalStateException("Is not initialized");
         if (status.is(STARTED)) throw new IllegalStateException("Already started");
-        if (status.isBroken())
-            throw new IllegalStateException("Is broken");
+        //if (status.isBroken()) throw new IllegalStateException("Is broken");
     }
 
     /**
      * @throws IllegalStateException
      */
     public static void checkStopSlow(LiveCycleStatus status){
-        if (!status.is(STARTED)) throw new IllegalStateException("Not started");
+        if (!status.is(STARTED)) throw new IllegalStateException("Is not started");
         if (status.is(LiveCycleStatus.AdvancedNames.STOPPING_SLOW) || status.is(LiveCycleStatus.AdvancedNames.STOPPING_FORCE))
             throw new IllegalStateException("Already stopping");
     }
@@ -37,7 +35,7 @@ public final class StatusChecker {
      * @throws IllegalStateException
      */
     public static void checkStopForce(LiveCycleStatus status){
-        if (!status.is(INITIALIZED) && !status.isBroken()) throw new IllegalStateException("Not initialized");
+        if (!status.is(INITIALIZED) && !status.isBroken()) throw new IllegalStateException("Is not initialized");
     }
 
     /**
@@ -45,5 +43,6 @@ public final class StatusChecker {
      */
     public static void checkDestroy(LiveCycleStatus status){
         if (status.is(STARTED)) throw new IllegalStateException("Is started. Stop before destroy.");
+        if (status.isNotInitialized()) throw new IllegalStateException("Is not initialized");
     }
 }

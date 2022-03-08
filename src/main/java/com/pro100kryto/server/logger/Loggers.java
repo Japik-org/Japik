@@ -16,7 +16,7 @@ public final class Loggers {
 
     private static void checkLogger(){
         if (defaultLogger == null){
-            defaultLogger = new LoggerSystemOut();
+            defaultLogger = new SystemOutLogger();
         }
     }
 }

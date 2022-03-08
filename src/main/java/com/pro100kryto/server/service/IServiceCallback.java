@@ -1,5 +1,6 @@
 package com.pro100kryto.server.service;
 
+import com.pro100kryto.server.element.ElementNotFoundException;
 import com.pro100kryto.server.logger.ILogger;
 import com.pro100kryto.server.logger.LoggerAlreadyExistsException;
 
@@ -14,6 +15,6 @@ public interface IServiceCallback {
     /**
      * @throws ClassCastException
      */
-    <SC extends IServiceConnection> SC getServiceConnection(String serviceName) throws ServiceNotFoundException;
+    <SC extends IServiceConnection> SC getServiceConnection(String serviceName) throws ElementNotFoundException;
     <SC extends IServiceConnection> IServiceConnectionSafe<SC> createServiceConnectionSafe(String serviceName);
 }

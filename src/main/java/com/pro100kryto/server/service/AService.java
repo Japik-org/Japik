@@ -1,31 +1,31 @@
 package com.pro100kryto.server.service;
 
-import com.pro100kryto.server.Tenant;
-import com.pro100kryto.server.livecycle.*;
-import com.pro100kryto.server.logger.ILogger;
+import com.pro100kryto.server.element.AElement;
+import com.pro100kryto.server.element.ElementType;
+import com.pro100kryto.server.livecycle.EmptyLiveCycleImpl;
+import com.pro100kryto.server.livecycle.InitException;
+import com.pro100kryto.server.livecycle.StartException;
+import com.pro100kryto.server.livecycle.controller.ILiveCycleImplId;
+import com.pro100kryto.server.livecycle.controller.LiveCycleController;
 import com.pro100kryto.server.module.*;
-import com.pro100kryto.server.settings.*;
+import com.pro100kryto.server.settings.ISettingsManagerCallback;
+import com.pro100kryto.server.settings.IntegerSettingListener;
+import com.pro100kryto.server.settings.SettingListenerContainer;
+import com.pro100kryto.server.settings.SettingListenerEventMask;
+import lombok.Getter;
+import lombok.Setter;
 import org.eclipse.collections.impl.map.mutable.primitive.IntObjectHashMap;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.rmi.RemoteException;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public abstract class AService <SC extends IServiceConnection> implements IService<SC>,
+public abstract class AService <SC extends IServiceConnection> extends AElement
+        implements IService<SC>,
         ISettingsManagerCallback, IServiceConnectionCallback {
 
     protected final IServiceCallback serviceCallback;
     protected final ModuleLoader moduleLoader;
-    protected final Tenant tenant;
-    protected final String type;
-    protected final String name;
-    protected final ILogger logger;
 
-    private final LiveCycleController liveCycleController, liveCycleControllerInternal;
-
-    protected final Settings settings;
-    protected final SettingsManager settingsManager;
     protected final BaseServiceSettings baseSettings;
 
     private boolean serviceConnectionMultipleEnabled;
@@ -34,48 +34,16 @@ public abstract class AService <SC extends IServiceConnection> implements IServi
     private AtomicInteger serviceConnectionCounter;
 
     public AService(ServiceParams serviceParams) {
+        super(ElementType.Service,
+                serviceParams.getType(),
+                serviceParams.getName(),
+                serviceParams.getServiceTenant(),
+                serviceParams.getLogger()
+        );
+
         serviceCallback = serviceParams.getServiceCallback();
         moduleLoader = serviceParams.getModuleLoaderBuilder().build(this);
-        type = serviceParams.getType();
-        name = serviceParams.getName();
-        logger = serviceParams.getLogger();
-        tenant = serviceParams.getServiceAsTenant();
-
-        // LiveCycle
-        // 3
-        liveCycleController = new LiveCycleController.Builder()
-                .setDefaultImpl(createDefaultLiveCycleImpl()) // 4
-                .build(logger, "Service name='"+name+"'");
-
-        // 1
-        liveCycleControllerInternal = new LiveCycleController.Builder()
-                .setDefaultImpl(new AServiceLiveCycleInternalImpl()) // 2
-                .build(logger, "Service (internal) name='"+name+"'");
-
-        // settings
-        settings = new Settings();
-        settingsManager = new SettingsManager(settings, this, logger);
         baseSettings = new BaseServiceSettings(settingsManager.getSettings());
-    }
-
-    @Override
-    public final IServiceCallback getCallback() {
-        return serviceCallback;
-    }
-
-    @Override
-    public final String getType() {
-        return type;
-    }
-
-    @Override
-    public final String getName() {
-        return name;
-    }
-
-    @Override
-    public final Settings getSettings() {
-        return settingsManager.getSettings();
     }
 
     @Override
@@ -89,18 +57,13 @@ public abstract class AService <SC extends IServiceConnection> implements IServi
     }
 
     @Override
-    public final Tenant asTenant() {
-        return tenant;
+    public final IServiceCallback getServiceCallback() {
+        return serviceCallback;
     }
 
     @Override
     public final ModuleLoader getModuleLoader() {
         return moduleLoader;
-    }
-
-    @Override
-    public final String toString() {
-        return "Service { type:'"+type+"', name:'"+name+"' }";
     }
 
     @Override
@@ -110,13 +73,20 @@ public abstract class AService <SC extends IServiceConnection> implements IServi
         }
 
         if (serviceConnectionMultipleEnabled || serviceConnectionMap.isEmpty()){
-            return _createServiceConnection();
+            return createServiceConnectionImpl();
         }
 
         return serviceConnectionMap.get(serviceConnectionCounter.get());
     }
 
-    private SC _createServiceConnection(){
+    @Override
+    protected void initLiveCycleController(LiveCycleController liveCycleController) {
+        super.initLiveCycleController(liveCycleController);
+        liveCycleController.putImplAll(new ServiceLiveCycleImpl());
+        liveCycleController.putImplAll(new LowerServiceLiveCycleImpl());
+    }
+
+    private SC createServiceConnectionImpl(){
         if (serviceConnectionMap.size() >= serviceConnectionMultipleMaxCount){
             throw new IllegalStateException("No more space for connections");
         }
@@ -130,45 +100,6 @@ public abstract class AService <SC extends IServiceConnection> implements IServi
         return sc;
     }
 
-    // virtual
-
-    @NotNull
-    protected ILiveCycleImpl createDefaultLiveCycleImpl(){
-        return EmptyLiveCycleImpl.instance;
-    }
-
-    protected void setupLiveCycleControllerBeforeInit(LiveCycleController liveCycleController){
-    }
-
-    protected void setupSettingsBeforeInit() throws Throwable {
-        settingsManager.setListener(new SettingListenerContainer(
-                BaseServiceSettings.KEY_AUTO_FIX_BROKEN_ENABLED,
-                new BooleanSettingListener() {
-                    @Override
-                    public void apply2(String key, Boolean val, SettingListenerEventMask eventMask) {
-                        liveCycleController.setEnabledAutoFixBroken(val);
-                    }
-                },
-                // default
-                Boolean.toString(false)
-        ));
-
-        if (baseSettings.isConnectionMultipleEnabled()) {
-            settingsManager.setListener(new SettingListenerContainer(
-                    BaseModuleSettings.KEY_CONNECTION_MULTIPLE_COUNT,
-                    new IntegerSettingListener() {
-                        @Override
-                        public void apply2(String key, Integer val, SettingListenerEventMask eventMask) {
-                            final IntObjectHashMap<SC> newMap = new IntObjectHashMap<>(val);
-                            newMap.putAll(serviceConnectionMap);
-                            serviceConnectionMap = newMap;
-                            serviceConnectionMultipleMaxCount = val;
-                        }
-                    }
-            ));
-        }
-    }
-
     protected abstract SC createServiceConnection(ServiceConnectionParams params);
 
     @Override
@@ -176,10 +107,10 @@ public abstract class AService <SC extends IServiceConnection> implements IServi
         serviceConnectionMap.remove(id);
     }
 
-    // utils
+    //region utils
 
     protected final void initModuleOrThrow(String moduleName) throws ModuleNotFoundException, InitException {
-        final IModule<?> module = moduleLoader.getModule(moduleName);
+        final IModule<?> module = moduleLoader.get(moduleName);
         if (!module.getLiveCycle().getStatus().isInitialized()){
             module.getLiveCycle().init();
         }
@@ -195,7 +126,7 @@ public abstract class AService <SC extends IServiceConnection> implements IServi
     }
 
     protected final void startModuleOrThrow(String moduleName) throws ModuleNotFoundException, InitException, StartException {
-        final IModule<?> module = moduleLoader.getModule(moduleName);
+        final IModule<?> module = moduleLoader.get(moduleName);
         if (!module.getLiveCycle().getStatus().isInitialized()){
             module.getLiveCycle().init();
         }
@@ -270,56 +201,34 @@ public abstract class AService <SC extends IServiceConnection> implements IServi
         return null;
     }
 
-    // LiveCycle
+    //endregion
 
-    @Override
-    public final ILiveCycle getLiveCycle() {
-        return liveCycleControllerInternal;
-    }
-
-    private final class AServiceLiveCycleInternalImpl implements ILiveCycleImpl {
+    protected final class ServiceLiveCycleImpl extends EmptyLiveCycleImpl implements ILiveCycleImplId {
+        @Getter
+        private final String name = "Service::NORMAL";
+        @Getter @Setter
+        private int priority = LiveCycleController.PRIORITY_NORMAL;
 
         @Override
         public void init() throws Throwable {
-            setupSettingsBeforeInit();
-
-            setupLiveCycleControllerBeforeInit(liveCycleController);
-            liveCycleController.init();
-            settingsManager.applyIfChanged();
-
-            // connection
-
-            serviceConnectionMultipleEnabled = baseSettings.isConnectionMultipleEnabled();
-            serviceConnectionMultipleMaxCount = (baseSettings.isConnectionMultipleEnabled() ? baseSettings.getConnectionMultipleCount() : 1);
-
-            serviceConnectionMap = new IntObjectHashMap<>(serviceConnectionMultipleMaxCount);
-            serviceConnectionCounter = new AtomicInteger();
-
-            if (baseSettings.isConnectionCreateAfterInitEnabled()){
-                _createServiceConnection();
+            if (baseSettings.isConnectionMultipleEnabled()) {
+                settingsManager.setListener(new SettingListenerContainer(
+                        BaseModuleSettings.KEY_CONNECTION_MULTIPLE_COUNT,
+                        new IntegerSettingListener() {
+                            @Override
+                            public void apply2(String key, Integer val, SettingListenerEventMask eventMask) {
+                                final IntObjectHashMap<SC> newMap = new IntObjectHashMap<>(val);
+                                newMap.putAll(serviceConnectionMap);
+                                serviceConnectionMap = newMap;
+                                serviceConnectionMultipleMaxCount = val;
+                            }
+                        }
+                ));
             }
         }
 
         @Override
-        public void start() throws Throwable {
-            settingsManager.applyIfChanged();
-            liveCycleController.start();
-        }
-
-        @Override
-        public void stopSlow() throws Throwable {
-            liveCycleController.stopSlow();
-        }
-
-        @Override
-        public void stopForce() {
-            liveCycleController.stopForce();
-        }
-
-        @Override
         public void destroy() {
-            settingsManager.removeAllListeners();
-
             while (!serviceConnectionMap.isEmpty()){
                 final int scId = serviceConnectionMap.keysView().intIterator().next();
                 try {
@@ -329,19 +238,26 @@ public abstract class AService <SC extends IServiceConnection> implements IServi
                 }
                 serviceConnectionMap.remove(scId);
             }
-
-            liveCycleController.destroy();
-            liveCycleController.setDefaultImpl();
         }
+    }
+
+    protected final class LowerServiceLiveCycleImpl extends EmptyLiveCycleImpl implements ILiveCycleImplId {
+        @Getter
+        private final String name = "Service::LOWER";
+        @Getter @Setter
+        private int priority = LiveCycleController.PRIORITY_LOWER;
 
         @Override
-        public void announceStop() {
-            liveCycleController.announceStop();
-        }
+        public void init() throws Throwable {
+            serviceConnectionMultipleEnabled = baseSettings.isConnectionMultipleEnabled();
+            serviceConnectionMultipleMaxCount = (baseSettings.isConnectionMultipleEnabled() ? baseSettings.getConnectionMultipleCount() : 1);
 
-        @Override
-        public boolean canBeStoppedSafe() {
-            return liveCycleController.canBeStoppedSafe();
+            serviceConnectionMap = new IntObjectHashMap<>(serviceConnectionMultipleMaxCount);
+            serviceConnectionCounter = new AtomicInteger();
+
+            if (baseSettings.isConnectionCreateAfterInitEnabled()){
+                createServiceConnectionImpl();
+            }
         }
     }
 }

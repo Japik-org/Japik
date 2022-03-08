@@ -1,7 +1,6 @@
 package com.pro100kryto.server.module;
 
 import com.pro100kryto.server.service.IService;
-import com.pro100kryto.server.service.ServiceNotFoundException;
 
 import java.rmi.RemoteException;
 import java.util.Objects;
@@ -58,7 +57,7 @@ public final class ModuleConnectionSafeFromService<MC extends IModuleConnection>
         try {
 
             // !! ClassCastException !!
-            final IModule<MC> module = service.getModuleLoader().getModule(moduleName);
+            final IModule<MC> module = (IModule<MC>) service.getModuleLoader().getOrThrow(moduleName);
 
             final MC oldMC = moduleConnection;
             final MC newMC = module.getModuleConnection();

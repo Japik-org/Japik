@@ -1,13 +1,14 @@
 package com.pro100kryto.server;
 
+import com.pro100kryto.server.dep.DependencyLord;
 import com.pro100kryto.server.extension.ExtensionLoader;
 import com.pro100kryto.server.extension.IExtension;
 import com.pro100kryto.server.livecycle.ILiveCycle;
 import com.pro100kryto.server.livecycle.ILiveCycleImpl;
-import com.pro100kryto.server.livecycle.LiveCycleController;
+import com.pro100kryto.server.livecycle.controller.LiveCycleController;
 import com.pro100kryto.server.logger.ILogger;
 import com.pro100kryto.server.logger.LoggerManager;
-import com.pro100kryto.server.logger.LoggerSystemOut;
+import com.pro100kryto.server.logger.SystemOutLogger;
 import com.pro100kryto.server.properties.ProjectProperties;
 import com.pro100kryto.server.service.IService;
 import com.pro100kryto.server.service.ServiceLoader;
@@ -35,7 +36,7 @@ public final class Server implements ISettingsManagerCallback {
 
     private ILogger mainLogger;
     @Nullable
-    private SharedDependencyLord sharedDependencyLord;
+    private DependencyLord dependencyLord;
     @Getter @Nullable
     private ServiceLoader serviceLoader;
     @Getter @Nullable
@@ -54,9 +55,11 @@ public final class Server implements ISettingsManagerCallback {
         final ServerLiveCycleImpl serverLiveCycle = new ServerLiveCycleImpl(this);
         liveCycleController = new LiveCycleController.Builder()
                 .setDefaultImpl(serverLiveCycle)
-                .build(LoggerSystemOut.instance, "Server");
+                .setElementName("Server")
+                .setLogger(SystemOutLogger.instance)
+                .build();
 
-        mainLogger = LoggerSystemOut.instance;
+        mainLogger = SystemOutLogger.instance;
         liveCycleController.setLogger(mainLogger);
 
         settings = new Settings();
@@ -88,17 +91,24 @@ public final class Server implements ISettingsManagerCallback {
 
             serverClassLoader = new URLClassLoader(new URL[0], parentClassLoader);
 
-            sharedDependencyLord = new SharedDependencyLord(
+            dependencyLord = new DependencyLord(
                     Paths.get(server.getWorkingPath().toString(), "core")
             );
 
-            serviceLoader = new ServiceLoader(server,
-                    sharedDependencyLord,
+            serviceLoader = new ServiceLoader(
+                    server,
+                    dependencyLord.getCorePath(),
+                    dependencyLord,
                     serverClassLoader,
-                    //Thread.currentThread().getThreadGroup(),
                     mainLogger
             );
-            extensionLoader = new ExtensionLoader(server, sharedDependencyLord, serverClassLoader, mainLogger);
+            extensionLoader = new ExtensionLoader(
+                    server,
+                    dependencyLord.getCorePath(),
+                    dependencyLord,
+                    serverClassLoader,
+                    mainLogger
+            );
 
             settingsManager.setLogger(mainLogger);
             settingsManager.setListener(new SettingListenerContainer(
@@ -119,7 +129,7 @@ public final class Server implements ISettingsManagerCallback {
 
         @Override
         public void stopSlow() throws Throwable {
-            for (final IService<?> service: serviceLoader.getServices()){
+            for (final IService<?> service: serviceLoader.getElements()){
                 try {
                     service.getLiveCycle().announceStop();
                 } catch (IllegalStateException illegalStateException){
@@ -127,7 +137,7 @@ public final class Server implements ISettingsManagerCallback {
                 }
             }
 
-            for (final IExtension<?> ext: extensionLoader.getExtensions()){
+            for (final IExtension<?> ext: extensionLoader.getElements()){
                 try {
                     ext.getLiveCycle().announceStop();
                 } catch (IllegalStateException illegalStateException){
@@ -137,7 +147,7 @@ public final class Server implements ISettingsManagerCallback {
 
             // ---
 
-            for (final IService<?> service: serviceLoader.getServices()){
+            for (final IService<?> service: serviceLoader.getElements()){
                 try {
                     service.getLiveCycle().stopSlow();
                 } catch (IllegalStateException illegalStateException){
@@ -145,7 +155,7 @@ public final class Server implements ISettingsManagerCallback {
                 }
             }
 
-            for (final IExtension<?> ext: extensionLoader.getExtensions()){
+            for (final IExtension<?> ext: extensionLoader.getElements()){
                 try {
                     ext.getLiveCycle().stopSlow();
                 } catch (IllegalStateException illegalStateException){
@@ -156,7 +166,7 @@ public final class Server implements ISettingsManagerCallback {
 
         @Override
         public void stopForce() {
-            serviceLoader.getServices().forEach( (service) -> {
+            serviceLoader.getElements().forEach( (service) -> {
                 try {
                     if (service.getLiveCycle().getStatus().isStarted() || service.getLiveCycle().getStatus().isBroken()) {
                         service.getLiveCycle().stopForce();
@@ -166,7 +176,7 @@ public final class Server implements ISettingsManagerCallback {
                 }
             });
 
-            extensionLoader.getExtensions().forEach( (ext) -> {
+            extensionLoader.getElements().forEach( (ext) -> {
                 try {
                     if (ext.getLiveCycle().getStatus().isStarted() || ext.getLiveCycle().getStatus().isBroken()) {
                         ext.getLiveCycle().stopForce();
@@ -182,23 +192,23 @@ public final class Server implements ISettingsManagerCallback {
             settingsManager.removeAllListeners();
 
             if (serviceLoader != null) {
-                serviceLoader.deleteAllServices();
+                serviceLoader.unloadAll();
             }
             serviceLoader = null;
 
             if (extensionLoader != null) {
-                extensionLoader.deleteAllExtensions();
+                extensionLoader.unloadAll();
             }
             extensionLoader = null;
 
-            mainLogger = LoggerSystemOut.instance;
+            mainLogger = SystemOutLogger.instance;
             liveCycleController.setLogger(mainLogger);
             loggerManager.unregisterLoggers();
 
-            if (sharedDependencyLord != null) {
-                sharedDependencyLord.releaseAllSharedDeps();
+            if (dependencyLord != null) {
+                dependencyLord.releaseAll();
             }
-            sharedDependencyLord = null;
+            dependencyLord = null;
 
             if (serverClassLoader != null) {
                 try {
@@ -215,11 +225,11 @@ public final class Server implements ISettingsManagerCallback {
 
         @Override
         public boolean canBeStoppedSafe() {
-            for (final IService<?> service: serviceLoader.getServices()){
+            for (final IService<?> service: serviceLoader.getElements()){
                 if (!service.getLiveCycle().canBeStoppedSafe()) return false;
             }
 
-            for (final IExtension<?> extension: extensionLoader.getExtensions()){
+            for (final IExtension<?> extension: extensionLoader.getElements()){
                 if (!extension.getLiveCycle().canBeStoppedSafe()) return false;
             }
 
@@ -228,11 +238,11 @@ public final class Server implements ISettingsManagerCallback {
 
         @Override
         public void announceStop() {
-            for (final IService<?> service: serviceLoader.getServices()){
+            for (final IService<?> service: serviceLoader.getElements()){
                 service.getLiveCycle().announceStop();
             }
 
-            for (final IExtension<?> extension: extensionLoader.getExtensions()){
+            for (final IExtension<?> extension: extensionLoader.getElements()){
                 extension.getLiveCycle().announceStop();
             }
         }

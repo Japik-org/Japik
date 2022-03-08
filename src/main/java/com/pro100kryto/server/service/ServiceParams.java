@@ -1,6 +1,6 @@
 package com.pro100kryto.server.service;
 
-import com.pro100kryto.server.Tenant;
+import com.pro100kryto.server.dep.Tenant;
 import com.pro100kryto.server.logger.ILogger;
 import com.pro100kryto.server.module.ModuleLoader;
 import lombok.AllArgsConstructor;
@@ -14,5 +14,5 @@ public final class ServiceParams {
     private final String type;
     private final String name;
     private final ILogger logger;
-    private final Tenant serviceAsTenant;
+    private final Tenant serviceTenant;
 }

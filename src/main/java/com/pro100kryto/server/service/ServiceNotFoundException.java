@@ -1,15 +1,13 @@
 package com.pro100kryto.server.service;
 
+import com.pro100kryto.server.element.ElementNotFoundException;
+import com.pro100kryto.server.element.ElementType;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 
-@RequiredArgsConstructor
 @Getter
-public final class ServiceNotFoundException extends Exception{
-    private final String serviceName;
+public final class ServiceNotFoundException extends ElementNotFoundException {
 
-    @Override
-    public String getMessage() {
-        return "Service name='"+serviceName+"' not found";
+    public ServiceNotFoundException(ElementType elementType, String elementSubtype, String elementName) {
+        super(elementType, elementSubtype, elementName);
     }
 }

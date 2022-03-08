@@ -1,122 +1,40 @@
 package com.pro100kryto.server.utils;
 
+import com.google.common.base.Strings;
 import com.google.common.reflect.ClassPath;
+import com.pro100kryto.server.dep.DependencyLocationType;
+import com.pro100kryto.server.dep.DependencySide;
+import com.pro100kryto.server.dep.Tenant;
+import com.pro100kryto.server.element.ElementType;
+import org.jetbrains.annotations.Nullable;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.function.Consumer;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
 public class UtilsInternal {
 
-    public static void readClassPathRecursively(final File file,
-                                                final Path corePath,
-                                                final ArrayList<Path> pathsOut,
-                                                final boolean addSelf)
-            throws IOException, ManifestNotFoundException, ResolveDependenciesIncompleteException {
+    public static String jarDepUrlToId(URL depUrl) {
+        return DependencyLocationType.Jar + "|" + depUrl;
+    }
 
-        final ResolveDependenciesIncompleteException.Builder incompleteBuilder = new ResolveDependenciesIncompleteException.Builder();
-
-        readClassPathRecursivelyPrivate(
-                file,
-                corePath,
-                pathsOut,
-                addSelf,
-                incompleteBuilder
-        );
-
-        if (!incompleteBuilder.isEmpty()){
-            throw incompleteBuilder.build();
+    public static <T> void addIfNotContains(ArrayList<T> list, T item) {
+        if (!list.contains(item)){
+            list.add(item);
         }
     }
 
-    private static void readClassPathRecursivelyPrivate(final File file,
-                                                        final Path corePath,
-                                                        final ArrayList<Path> pathsOut,
-                                                        final boolean addSelf,
-                                                        final ResolveDependenciesIncompleteException.Builder incompleteBuilder)
-            throws IOException, ManifestNotFoundException {
-
-        final Path filePath = file.toPath().toAbsolutePath();
-        if (addSelf && !pathsOut.contains(filePath))
-            pathsOut.add(filePath);
-
-        if (!file.exists()) {
-            throw new FileNotFoundException("file \"" + file.getCanonicalPath() + "\" not exist");
-        }
-
-        final JarFile jarFile = new JarFile(file);
-        final Manifest manifest = jarFile.getManifest();
-        if (manifest == null) { // manifest does not exist
-            throw new ManifestNotFoundException(jarFile);
-        }
-
-        final Attributes attributes = manifest.getMainAttributes();
-
-        UtilsInternal.iterateAttributeValues(attributes, "Connect-Libs", (value) -> {
-            try {
-                pathsOut.add(Paths.get(corePath.toString(), "libs", value.toLowerCase()));
-
-            } catch (Throwable throwable) {
-                incompleteBuilder.addError(throwable);
-            }
-        });
-
-        UtilsInternal.iterateAttributeValues(attributes, "Connect-Utils", (value) -> {
-            try {
-                readClassPathRecursivelyPrivate(
-                        Paths.get(corePath.toString(), "utils", value.toLowerCase()).toFile(),
-                        corePath, pathsOut, true,
-                        incompleteBuilder
-                );
-            } catch (ManifestNotFoundException | FileNotFoundException warningException){
-                incompleteBuilder.addWarning(warningException);
-
-            } catch (Throwable throwable) {
-                incompleteBuilder.addError(throwable);
-            }
-        });
-
-        UtilsInternal.iterateAttributeValues(attributes, "Connect-Services", (value) -> {
-            try {
-                readClassPathRecursivelyPrivate(
-                        Paths.get(corePath.toString(), "services", value.toLowerCase()+"-service-connection.jar").toFile(),
-                        corePath, pathsOut, true,
-                        incompleteBuilder
-                );
-            } catch (ManifestNotFoundException | FileNotFoundException warningException){
-                incompleteBuilder.addWarning(warningException);
-
-            } catch (Throwable throwable) {
-                incompleteBuilder.addError(throwable);
-            }
-        });
-
-        UtilsInternal.iterateAttributeValues(attributes, "Connect-Modules", (value) -> {
-            try {
-                readClassPathRecursivelyPrivate(
-                        Paths.get(corePath.toString(), "modules", value.toLowerCase()+"-module-connection.jar").toFile(),
-                        corePath, pathsOut, true,
-                        incompleteBuilder
-                );
-            } catch (ManifestNotFoundException | FileNotFoundException warningException){
-                incompleteBuilder.addWarning(warningException);
-
-            } catch (Throwable throwable) {
-                incompleteBuilder.addError(throwable);
-            }
-        });
-    }
-
-    public static void iterateAttributeValues(Attributes attributes, String attrName, Consumer<String> consumer){
+    public static void iterateAttributeValues(Attributes attributes, String attrName, ConsumerThrow<String> consumer) throws Throwable {
         final String attrValues = attributes.getValue(attrName);
         if (attrValues == null || attrValues.isEmpty()) return;
         final String[] attrValuesArr = attrValues.split("[\\s\\n\\r\\t]");
@@ -126,7 +44,12 @@ public class UtilsInternal {
         }
     }
 
-    public static void loadAllClasses(ClassLoader classLoader, URL jarFileURL) throws IOException {
+    public static boolean containsAttrValue(Attributes attributes, String attrName, String valSubstring) {
+        return Arrays.asList( attributes.getValue(attrName).split("[\\s\\n\\r\\t]") ).
+                contains(valSubstring);
+    }
+
+    public static void loadClasses(ClassLoader classLoader, URL jarFileURL) throws IOException {
         final URLClassLoader tempCL = new URLClassLoader(new URL[]{jarFileURL}, null);
         tempCL.close();
 
@@ -141,7 +64,7 @@ public class UtilsInternal {
                 });
     }
 
-    public static void loadAllClasses(ClassLoader classLoader, URL jarFileURL, String basePackage)
+    public static void loadClasses(ClassLoader classLoader, URL jarFileURL, String basePackage)
             throws IOException {
 
         final URLClassLoader tempCL = new URLClassLoader(new URL[]{jarFileURL}, null);
@@ -159,13 +82,136 @@ public class UtilsInternal {
                 });
     }
 
-    public static String getJarAttrVal(JarFile jarFile, String attrName) throws IOException, ManifestNotFoundException {
-        final Manifest manifest = jarFile.getManifest();
-        if (manifest == null) { // manifest does not exist
-            throw new ManifestNotFoundException(jarFile);
+    public static String getAttrValElse(Attributes attributes, String attrName, String elseValue) {
+        final String val = attributes.getValue(attrName);
+        if (Strings.isNullOrEmpty(val)) {
+            return elseValue;
         }
-        final Attributes attributes = manifest.getMainAttributes();
+        return val;
+    }
 
-        return attributes.getValue(attrName);
+    public static Path findElementPath(ElementType elementType, DependencySide elementSide,
+                                       String elSubtype,
+                                       Path corePath) throws IOException {
+        return findElementPathImpl(elementType, elementSide, elSubtype, "(.*)", corePath);
+    }
+
+    public static Path findElementPath(ElementType elementType, DependencySide elementSide,
+                                       String elSubtype, @Nullable String elVersion,
+                                       Path corePath) throws IOException {
+        if (elVersion == null) {
+            elVersion = "(.*)";
+        }
+        return findElementPathImpl(elementType, elementSide, elSubtype, elVersion, corePath);
+    }
+
+    private static Path findElementPathImpl(ElementType elementType,
+                                            DependencySide elementSide,
+                                            String elSubtype, String elVersion,
+                                            Path corePath) throws IOException {
+        final Path sharedDirPath = Paths.get(
+                corePath.toString(),
+                elementType.toString().toLowerCase()+"s"
+        );
+
+        final List<String> expectedFileName = new ArrayList<String>() {{
+            // elVersion = X
+
+            // C:/dir/a-service-impl-vX.jar
+            // C:/dir/a-service-impl-vX.Y.jar
+            // regex: a-service-impl-vX.(.*)jar
+            add(elSubtype.toLowerCase()+"-"+elementType.toString().toLowerCase()+"-"+elementSide.toString().toLowerCase()+"-v"+elVersion+".(.*)jar");
+
+            // C:/dir/a-service-vX.jar
+            add(elSubtype.toLowerCase()+"-"+elementType.toString().toLowerCase()+"-v"+elVersion+".(.*)jar");
+
+            // C:/dir/a-service-impl.jar
+            add(elSubtype.toLowerCase()+"-"+elementType.toString().toLowerCase()+"-"+elementSide.toString().toLowerCase()+".jar");
+
+            // C:/dir/a-service.jar
+            add(elSubtype.toLowerCase()+"-"+elementType.toString().toLowerCase()+".jar");
+        }};
+
+        final Optional<Path> result = Files.walk(sharedDirPath)
+                // filter file name
+                .filter(path -> {
+                    for (final String expected : expectedFileName) {
+                        if (path.getFileName().toString().matches(expected)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                })
+                // check element type in manifest
+                .filter(path -> {
+                    try {
+                        try (final JarFile jarFile = new JarFile(path.toFile())) {
+                            final Manifest manifest = jarFile.getManifest();
+                            if (manifest == null) return false;
+                            final Attributes attributes = manifest.getAttributes(elementType+"-"+elementSide);
+                            if (attributes == null) return false;
+                            final boolean flag = (attributes.getValue("Version")+".")
+                                    .matches(elVersion+".(.*)");
+                            return flag;
+                        }
+                    } catch (Throwable throwable) {
+                        throwable.printStackTrace();
+                    }
+                    return false;
+                })
+                // find max version
+                .max((path1, path2) -> {
+                    try {
+                        final String version1;
+                        try (final JarFile jarFile = new JarFile(path1.toFile())) {
+                            final Attributes attributes = jarFile.getManifest().getAttributes(elementType + "-" + elementSide);
+                            version1 = attributes.getValue("Version");
+                        }
+                        final String version2;
+                        try (final JarFile jarFile = new JarFile(path2.toFile())) {
+                            final Attributes attributes = jarFile.getManifest().getAttributes(elementType + "-" + elementSide);
+                            version2 = attributes.getValue("Version");
+                        }
+
+                        return version1.compareTo(version2);
+
+                    } catch (Throwable throwable){
+                        throwable.printStackTrace();
+                        final String o1Name = path1.getFileName().toString();
+                        final String o1Version = o1Name.substring(o1Name.lastIndexOf("-v") + 2);
+                        final String o2Name = path2.getFileName().toString();
+                        final String o2Version = o2Name.substring(o2Name.lastIndexOf("-v") + 2);
+                        return o1Version.compareTo(o2Version);
+                    }
+                });
+
+        if (result.isPresent()) {
+            return result.get();
+        }
+
+        throw new IOException("Element not found "+
+                "ElementType='"+elementType+
+                "' ElementSide='"+elementSide+
+                "' ElementSubtype='"+elSubtype+
+                "' ElementVersion='"+elVersion+
+                "' Dir='"+sharedDirPath+"'"
+        );
+    }
+
+    public static Path getElementPath(ElementType elementType, DependencySide elementSide,
+                                      String elSubtype, String elVersion,
+                                      Path corePath) {
+        return Paths.get(
+                corePath.toString(),
+                elementType.toString().toLowerCase()+"s",
+                elSubtype.toLowerCase()+"-"+elementType.toString().toLowerCase()+"-"+elementSide.toString().toLowerCase()+"-v"+elVersion+".jar"
+        ).normalize();
+    }
+
+    public static Tenant createElementTenant(ElementType elType, String elSubtype, String elName) {
+        return new Tenant("Element type='"+elType+
+                "' subtype='"+elSubtype+
+                "' name='"+elName+"'"
+        );
     }
 }
