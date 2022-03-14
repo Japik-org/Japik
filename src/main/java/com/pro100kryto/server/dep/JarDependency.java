@@ -10,10 +10,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 @Getter
@@ -32,11 +32,29 @@ public abstract class JarDependency extends ADependency {
         final ArrayList<ClassLoader> classLoaderList = new ArrayList<>(dependencyList.size());
 
         dependencyList.stream()
+                .filter(iDependency -> iDependency.getDependencySide() == DependencySide.Shared)
                 .map(IDependency::getClassLoader)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(() -> classLoaderList));
 
-        return new URLClassLoader(
+        // ---
+
+        final ArrayList<ClassLoader> implClassLoaderList = new ArrayList<>();
+
+        dependencyList.stream()
+                .filter(iDependency -> iDependency.getDependencySide() == DependencySide.Impl)
+                .map(IDependency::getClassLoader)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(() -> implClassLoaderList));
+
+        classLoaderList.add(new JoinClassLoader(
+                baseClassLoader,
+                implClassLoaderList.toArray(new ClassLoader[0])
+        ));
+
+        // ----
+
+        return new ReversedURLClassLoader(
                 // src
                 new URL[] {url},
                 // dep
@@ -44,8 +62,13 @@ public abstract class JarDependency extends ADependency {
                         baseClassLoader,
                         classLoaderList,
                         true
-                )
+                ),
+                getClassNameFilter()
         );
+    }
+
+    protected Predicate<String> getClassNameFilter() {
+        return s -> true;
     }
 
     // -------------

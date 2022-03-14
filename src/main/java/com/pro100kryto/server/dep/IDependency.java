@@ -1,5 +1,6 @@
 package com.pro100kryto.server.dep;
 
+import java.io.IOException;
 import java.util.List;
 
 public interface IDependency {
@@ -12,6 +13,9 @@ public interface IDependency {
     List<IDependency> getDependencyList();
     ClassLoader getClassLoader();
 
-    void resolve() throws ResolveDependencyException;
+    void resolveAll() throws ResolveDependencyException;
+    void resolveClassLoaders() throws Throwable; // 1
+    void resolveClasses() throws ReflectiveOperationException, LinkageError, IOException; // 2
+
     void destroy();
 }

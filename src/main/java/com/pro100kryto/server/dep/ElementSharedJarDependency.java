@@ -8,6 +8,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.net.URL;
 import java.nio.file.Path;
+import java.util.function.Predicate;
 
 @Getter
 public abstract class ElementSharedJarDependency extends ElementJarDependency implements ISharedDependency {
@@ -18,6 +19,15 @@ public abstract class ElementSharedJarDependency extends ElementJarDependency im
 
     protected ElementSharedJarDependency(DependencyLord callback, BuilderByUrl builder) {
         super(callback, builder);
+    }
+
+    @Override
+    protected @Nullable Predicate<String> getClassNameFilter() {
+        final String pkg = basePackage+"."+
+                elementType.toString().toLowerCase()+"s.";
+
+        return s -> s.startsWith(pkg+elementSubtype.toLowerCase()+".connection") ||
+                s.startsWith(pkg+elementSubtype.toLowerCase()+".shared");
     }
 
     public static class BuilderByType extends ElementJarDependency.BuilderByType implements ISharedDependencyBuilder {

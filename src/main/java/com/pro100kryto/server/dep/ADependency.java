@@ -1,6 +1,5 @@
 package com.pro100kryto.server.dep;
 
-import com.pro100kryto.server.utils.UtilsInternal;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -48,30 +47,16 @@ public abstract class ADependency implements IDependency{
     }
 
     @Override
-    public final void resolve() throws ResolveDependencyException {
+    public final void resolveAll() throws ResolveDependencyException {
         if (status != DependencyStatus.NOT_RESOLVED) return;
 
         lock.lock();
         try {
-            if (status == DependencyStatus.RESOLVING) return;
-            status = DependencyStatus.RESOLVING;
+            if (status != DependencyStatus.NOT_RESOLVED) return;
 
-            final ArrayList<IDependency> dependencyList = new ArrayList<>(0);
-            addDependencies(dependencyList);
-            this.dependencyList = Collections.unmodifiableList(dependencyList);
+            resolveClassLoaders();
 
-            for (final IDependency dep: dependencyList) {
-                dep.resolve();
-            }
-
-            classLoader = createClassLoader(dependencyList);
-            if (classLoader == null) {
-                throw new NullPointerException("classLoader is null");
-            }
-
-            loadClasses(classLoader);
-
-            status = DependencyStatus.RESOLVED;
+            resolveClasses();
 
         } catch (ResolveDependencyException resolveDependencyException) {
             throw resolveDependencyException;
@@ -83,6 +68,49 @@ public abstract class ADependency implements IDependency{
             if (status == DependencyStatus.RESOLVING) {
                 status = DependencyStatus.NOT_RESOLVED;
             }
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public final void resolveClassLoaders() throws Throwable {
+        if (status != DependencyStatus.NOT_RESOLVED) return;
+
+        lock.lock();
+        try {
+            if (status != DependencyStatus.NOT_RESOLVED) return;
+            status = DependencyStatus.RESOLVING;
+
+            final ArrayList<IDependency> dependencyList = new ArrayList<>(0);
+            addDependencies(dependencyList);
+            this.dependencyList = Collections.unmodifiableList(dependencyList);
+
+            for (final IDependency dep : dependencyList) {
+                dep.resolveClassLoaders();
+            }
+
+            if (classLoader == null) {
+                classLoader = createClassLoader(dependencyList);
+                if (classLoader == null) {
+                    throw new NullPointerException("classLoader is null");
+                }
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public final void resolveClasses() throws ReflectiveOperationException, LinkageError, IOException {
+        lock.lock();
+        try {
+            for (final IDependency dep : dependencyList) {
+                dep.resolveClasses();
+            }
+            loadClasses(classLoader);
+
+            status = DependencyStatus.RESOLVED;
+        } finally {
             lock.unlock();
         }
     }
@@ -150,19 +178,7 @@ public abstract class ADependency implements IDependency{
 
     protected abstract ClassLoader createClassLoader(List<IDependency> dependencyList) throws Throwable;
 
-    protected void loadClasses(ClassLoader classLoader) throws Throwable {
-        for (final IDependency dep: dependencyList) {
-            switch (dep.getLocationType()) {
-                case Jar: {
-                    final JarDependency jarDep = (JarDependency) dep;
-                    UtilsInternal.loadClasses(classLoader, jarDep.getUrl());
-                    break;
-                }
-                default:
-                    throw new ClassCastException("Unknown DependencyLocationType: '"+dep.getLocationType()+"'");
-            }
-        }
-    }
+    protected abstract void loadClasses(ClassLoader classLoader) throws IOException;
 
     protected void releaseResources() {
         if (dependencyList != null) {

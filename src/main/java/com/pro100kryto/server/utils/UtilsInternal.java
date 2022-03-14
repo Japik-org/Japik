@@ -73,7 +73,7 @@ public class UtilsInternal {
         ClassPath.from(tempCL)
                 .getAllClasses()
                 .stream()
-                .filter(clazz -> clazz.getPackageName().equalsIgnoreCase(basePackage))
+                .filter(clazz -> clazz.getPackageName().toLowerCase().startsWith(basePackage))
                 .forEach(classInfo -> {
                     try {
                         classLoader.loadClass(classInfo.getName());

@@ -5,18 +5,14 @@ import com.pro100kryto.server.element.ElementType;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
-import net.bytebuddy.dynamic.loading.MultipleParentClassLoader;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
+import java.util.function.Predicate;
 
 @Getter
 public abstract class ElementImplJarDependency extends ElementJarDependency implements IImplDependency {
@@ -28,11 +24,14 @@ public abstract class ElementImplJarDependency extends ElementJarDependency impl
     @Nullable
     protected final ISharedDependency sharedDependency;
 
+    private final boolean importAllPackages;
+
     protected ElementImplJarDependency(DependencyLord callback, BuilderByType builder) {
         super(callback, builder);
         elementClassName = builder.getElementClassName();
         sharedSubtype = builder.getSharedSubtype();
         sharedDependency = builder.getSharedDependency();
+        importAllPackages = builder.isImportAllPackages();
     }
 
     protected ElementImplJarDependency(DependencyLord callback, BuilderByUrl builder) {
@@ -40,6 +39,7 @@ public abstract class ElementImplJarDependency extends ElementJarDependency impl
         elementClassName = builder.getElementClassName();
         sharedSubtype = builder.getSharedSubtype();
         sharedDependency = builder.getSharedDependency();
+        importAllPackages = builder.isImportAllPackages();;
     }
 
     @Override
@@ -51,24 +51,13 @@ public abstract class ElementImplJarDependency extends ElementJarDependency impl
     }
 
     @Override
-    protected ClassLoader createClassLoader(List<IDependency> dependencyList) throws Throwable {
-        final ArrayList<ClassLoader> classLoaderList = new ArrayList<>();
+    protected @Nullable Predicate<String> getClassNameFilter() {
+        final String pkg = basePackage+"."+
+                elementType.toString().toLowerCase()+"s.";
 
-        dependencyList.stream()
-                .map(IDependency::getClassLoader)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toCollection(() -> classLoaderList));
-
-        return new URLClassLoader(
-                // src
-                new URL[] {url},
-                // dep
-                new MultipleParentClassLoader(
-                        baseClassLoader,
-                        classLoaderList,
-                        true
-                )
-        );
+        return s -> (importAllPackages || s.startsWith(pkg+elementSubtype.toLowerCase())) &&
+                !s.startsWith(pkg + elementSubtype.toLowerCase() + ".connection") &&
+                !s.startsWith(pkg + elementSubtype.toLowerCase() + ".shared");
     }
 
     public Class<?> createElementClass() throws ClassNotFoundException {
@@ -98,6 +87,8 @@ public abstract class ElementImplJarDependency extends ElementJarDependency impl
         protected ElementSharedJarDependency.BuilderByType sharedDependencyBuilder;
         @Nullable
         protected ISharedDependency sharedDependency;
+
+        private boolean importAllPackages;
 
         public BuilderByType(@NotNull Path corePath) {
             super(corePath);
@@ -149,6 +140,8 @@ public abstract class ElementImplJarDependency extends ElementJarDependency impl
                         elementSubtype+elementType; // XService
             }
             sharedSubtype = attributes.getValue("Shared-Subtype");
+
+            importAllPackages = "true".equals(attributes.getValue("Import-All-Packages"));
         }
 
         protected abstract ElementSharedJarDependency.BuilderByType createSharedDepBuilder();
@@ -195,6 +188,8 @@ public abstract class ElementImplJarDependency extends ElementJarDependency impl
         protected ISharedDependencyBuilder sharedDependencyBuilder;
         @Nullable
         protected ISharedDependency sharedDependency;
+
+        private boolean importAllPackages;
 
         public BuilderByUrl() {
             dependencySide = DependencySide.Impl;
@@ -245,6 +240,8 @@ public abstract class ElementImplJarDependency extends ElementJarDependency impl
                         elementSubtype+elementType; // XService
             }
             sharedSubtype = attributes.getValue("Shared-Subtype");
+
+            importAllPackages = "true".equals(attributes.getValue("Import-All-Packages"));
         }
 
         protected abstract ISharedDependencyBuilder createSharedDepBuilder();

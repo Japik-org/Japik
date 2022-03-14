@@ -1,5 +1,6 @@
 package com.pro100kryto.server.dep;
 
+import com.google.common.reflect.ClassPath;
 import com.pro100kryto.server.NotImplementedException;
 import com.pro100kryto.server.element.ElementType;
 import com.pro100kryto.server.utils.UtilsInternal;
@@ -12,6 +13,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -141,6 +143,7 @@ public abstract class ElementJarDependency extends JarDependency {
                     final LibJarDependency.BuilderByUrl depBuilder = new LibJarDependency.BuilderByUrl();
 
                     depBuilder
+                            //.setParentClassLoaderSupplier(() -> classLoader)
                             .setBaseClassLoader(baseClassLoader)
                             .setUrl(path.toUri().toURL())
                             .setTenant(getTenantList().get(0))
@@ -155,90 +158,6 @@ public abstract class ElementJarDependency extends JarDependency {
             //endregion
 
             // region connect impl
-            iterateAttributeValues(attributes, "Service-Impl-Subtype", (val) -> {
-                final String connServiceType = val.split("-")[0];
-                final String connServiceVersion = (val.contains("-v") ? val.split("-v")[1] : null);
-                final ServiceImplJarDependency.BuilderByType depBuilder =
-                        new ServiceImplJarDependency.BuilderByType(callback.getCorePath());
-
-                depBuilder
-                        .setBaseClassLoader(baseClassLoader)
-                        .setElementSubtype(connServiceType)
-                        .setElementVersion(connServiceVersion)
-                        .setTenant(getTenantList().get(0));
-
-                try {
-                    final IDependency dependency = callback.buildImpl(depBuilder);
-                    dependencyListOut.add(dependency);
-                } catch (IOException ioException) {
-                    ioException.printStackTrace();
-                }
-            });
-
-            iterateAttributeValues(attributes, "Service-Impl-Jar", (val) -> {
-                final Path path = Paths.get(
-                        callback.getCorePath().toString(),
-                        "services",
-                        val
-                ).normalize();
-                try {
-                    final ServiceImplJarDependency.BuilderByUrl depBuilder =
-                            new ServiceImplJarDependency.BuilderByUrl();
-
-                    depBuilder
-                            .setBaseClassLoader(baseClassLoader)
-                            .setUrl(path.toUri().toURL())
-                            .setTenant(getTenantList().get(0));
-
-                    final IDependency dependency = callback.buildImpl(depBuilder);
-                    dependencyListOut.add(dependency);
-                } catch (IOException ioException) {
-                    ioException.printStackTrace();
-                }
-            });
-
-            iterateAttributeValues(attributes, "Module-Impl-Subtype", (val) -> {
-                final String connModuleType = val.split("-")[0];
-                final String connModuleVersion = (val.contains("-v") ? val.split("-v")[1] : null);
-                final ModuleImplJarDependency.BuilderByType depBuilder =
-                        new ModuleImplJarDependency.BuilderByType(callback.getCorePath());
-
-                depBuilder
-                        .setBaseClassLoader(baseClassLoader)
-                        .setElementSubtype(connModuleType)
-                        .setElementVersion(connModuleVersion)
-                        .setTenant(getTenantList().get(0));
-
-                try {
-                    final IDependency dependency = callback.buildImpl(depBuilder);
-                    dependencyListOut.add(dependency);
-                } catch (IOException ioException) {
-                    ioException.printStackTrace();
-                }
-            });
-
-            iterateAttributeValues(attributes, "Module-Impl-Jar", (val) -> {
-                final Path path = Paths.get(
-                        callback.getCorePath().toString(),
-                        "modules",
-                        val
-                ).normalize();
-                try {
-                    final ModuleImplJarDependency.BuilderByUrl depBuilder =
-                            new ModuleImplJarDependency.BuilderByUrl();
-
-                    depBuilder
-                            .setBaseClassLoader(baseClassLoader)
-                            .setUrl(path.toUri().toURL())
-                            .setTenant(getTenantList().get(0));
-
-                    final IDependency dependency = callback.buildImpl(depBuilder);
-                    dependencyListOut.add(dependency);
-                } catch (IOException ioException) {
-                    ioException.printStackTrace();
-                }
-            });
-
             iterateAttributeValues(attributes, "Lib-Impl-Jar", (val) -> {
                 final Path path = Paths.get(
                         callback.getCorePath().toString(),
@@ -249,12 +168,14 @@ public abstract class ElementJarDependency extends JarDependency {
                     final LibJarDependency.BuilderByUrl depBuilder = new LibJarDependency.BuilderByUrl();
 
                     depBuilder
+                            .setParentClassLoaderSupplier(() -> classLoader)
                             .setBaseClassLoader(baseClassLoader)
                             .setUrl(path.toUri().toURL())
                             .setTenant(getTenantList().get(0))
                             .setDependencySide(DependencySide.Impl);
 
                     final IDependency dependency = callback.buildImpl(depBuilder);
+                    //implDepList.add((ILibDependency) dependency);
                     dependencyListOut.add(dependency);
                 } catch (IOException ioException) {
                     ioException.printStackTrace();
@@ -263,6 +184,24 @@ public abstract class ElementJarDependency extends JarDependency {
             //endregion
 
         }
+    }
+
+    @Override
+    protected void loadClasses(ClassLoader classLoader) throws IOException {
+        final URLClassLoader tempCL = new URLClassLoader(new URL[]{url}, null);
+        tempCL.close();
+
+        ClassPath.from(tempCL)
+                .getAllClasses()
+                .stream()
+                .map(ClassPath.ClassInfo::getName)
+                .filter(getClassNameFilter())
+                .forEach(name -> {
+                    try {
+                        classLoader.loadClass(name);
+                    } catch (ClassNotFoundException ignored) {
+                    }
+                });
     }
 
     // -------------

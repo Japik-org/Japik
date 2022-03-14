@@ -62,7 +62,7 @@ public final class Tick implements ITickRunnableCallback, ITick, ITickSettings {
         try {
             tickRunnable.tick(timeDiff);
         } catch (Throwable throwable){
-            logger.exception(throwable, "Failed tick "+toString());
+            logger.exception(throwable, "Failed "+toString());
         }
     }
 

@@ -82,13 +82,13 @@ public abstract class AElementLoader <T extends IElement> {
                 }
 
                 final ElementImplJarDependency implDependency = (ElementImplJarDependency) dependencyLord.buildImpl(implDepBuilder);
-                //implDependency.loadMissingDependencies();
-                implDependency.resolve();
+                implDependency.resolveAll();
 
                 final T element = createElement(
                         implDependency,
                         elName,
-                        Objects.requireNonNull(implDepBuilder.getTenant()));
+                        Objects.requireNonNull(implDepBuilder.getTenant())
+                );
 
                 nameElementMap.put(elName, element);
                 logger.info("New element loaded: " + element.toString());
@@ -148,7 +148,7 @@ public abstract class AElementLoader <T extends IElement> {
 
                 final ElementImplJarDependency implDependency = (ElementImplJarDependency) dependencyLord.buildImpl(implDepBuilder);
 
-                implDependency.resolve();
+                implDependency.resolveAll();
 
                 final T element = createElement(
                         implDependency,
