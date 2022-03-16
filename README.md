@@ -10,7 +10,7 @@ This framework currently does not provide socket communications or any useful pr
 Missing/planned:
 1. Upload to maven central
 2. Add support of RMI and RPC for services out of box (to kernel)
-3. Possibility to migrate elements from one jvm to another, easily and safe
+3. Possibility to migrate services from one jvm to another, easily and safe
 4. Develop more elements (services, modules and extensions) and so gain an easy and flexible tools for:
    1. Create microservices
    2. Develop RESTful and another APIs
