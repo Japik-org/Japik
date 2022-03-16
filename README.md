@@ -9,14 +9,14 @@ This framework currently does not provide socket communications or any useful pr
 
 Missing/planned:
 1. Upload to maven central
-2. Add support of RMI and RPC for services out of box (to kernel)
+2. Add support of RMI and RPC for services out of box (to core)
 3. Possibility to migrate services from one jvm to another, easily and safe
 4. Develop more elements (services, modules and extensions) and so gain an easy and flexible tools for:
    1. Create microservices
-   2. Develop RESTful and another APIs
+   2. Develop APIs like RESTful
    3. Monitoring resources
-   4. Launch FTP server
-   5. Launch web sites
+   4. Launching FTP servers
+   5. Launching web sites
    6. Develop a video game backend
    7. Develop another custom solutions...
 
@@ -54,6 +54,12 @@ Import-All-Packages: false (By default is false and will be loaded classes only 
 
 ```
 
+*Versioning:*
+
+(1.0): 
+1 is the major version of contract/shared used. There are no way to load contract which have another major version. 0 is the version of impl part. There are no limits to add more sub-versions like 1.0.1.abc. If two or more elements found with the same type, subtype and major version, so the element of the greatest version will be loaded.
+
+More info coming soon
 ...
 
 How to create a service shared
@@ -83,4 +89,10 @@ Service-Shared-Jar: jar jar (connect service interfaces by file name)
 
 ```
 
+*Versioning:*
+
+(1.0): 
+1 is the major version of contract/shared. 0 is the minor version that does not affect impl part. There are no limits to add more sub-versions like 1.0.1.abc.
+
+More info coming soon
 ...
