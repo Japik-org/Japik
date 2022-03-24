@@ -139,3 +139,99 @@ public interface IXServiceConnection extends IServiceConnection {
 
 More info coming soon
 ...
+
+Live Cycling
+---
+(refactoring and simplifications needed)
+
+*Live Cycle operation*
+
+0. initializing java object
+1. init() - initialize variables, settings, custom live cycling, etc (fill RAM)
+2. start() - start threads, processing
+3. stopSlow() or stopForce() - stop/pause processing
+4. destroy - release resources
+
+*Live cycle combination examples*
+
+0. just destroy -> ...
+1. init -> destroy -> ...
+2. init -> start -> stop -> destroy -> ...
+3. init -> start -> stop -> start -> ...
+4. init -> destroy -> init -> ...
+
+*java*
+```java
+import com.pro100kryto.server.livecycle.controller.LiveCycleController;
+
+class XElement extends AElement { // for example, XService extends AService<IXServiceConnection>
+   @Override
+   protected void initLiveCycleController(LiveCycleController liveCycleController) {
+      liveCycleController.getInitImplQueue().put(new LiveCycleImplId(
+              "init example", LiveCycleController.PRIORITY_HIGH
+      ),() -> {
+         ... // your custom initialization
+      });
+      liveCycleController.getStartImplQueue().put(...)
+      liveCycleController.getStopForceImplQueue().put(...)
+      liveCycleController.getDestroyImplQueue().put(...)
+
+      liveCycleController.putImplAll(new XElementLiveCycleImpl1());
+      liveCycleController.putImplAll(new XElementLiveCycleImpl2());
+   }
+   
+   private class XElementLiveCycleImpl1 implements ILiveCycleImpl, ILiveCycleImplId {
+      @Getter
+      private final String name = "XElementLiveCycleImpl1";
+      @Getter @Setter
+      private int priority = LiveCycleController.PRIORITY_NORMAL;
+
+      // your must implement all
+      
+      @Override public void init() throws Throwable {
+         // your another custom initialization
+      }
+
+      @Override public void start() throws Throwable {
+      }
+
+      @Override public void stopSlow() throws Throwable {
+      }
+
+      @Override public void stopForce() {
+      }
+
+      @Override public void destroy() {
+      }
+
+      @Override public void announceStop() {
+      }
+
+      @Override public boolean canBeStoppedSafe() {
+         return true;
+      }
+   }
+
+   private class XElementLiveCycleImpl2 extends EmptyLiveCycleImpl implements ILiveCycleImplId {
+      @Getter
+      private final String name = "XElementLiveCycleImpl2";
+      @Getter @Setter
+      private int priority = LiveCycleController.PRIORITY_LOW;
+      
+      ... // you can override all or nothing
+   }
+}
+```
+
+Each live cycle implementation added to the controller will be sorted according to ```priority```:
+* PRIORITY_HIGHEST = min
+* PRIORITY_HIGH = -1
+* PRIORITY_NORMAL = 0
+* PRIORITY_LOW = 1
+* PRIORITY_LOWER = max
+* or custom integer number
+
+Name (```name```) for LiveCycleImpl are used for identify them. When any exception (Throwable) occurs, you will se that name in logs. Also, you can remove them from queue if you know names.
+When some exception occurs during live cycle operation, it does not empty the live cycle queue. So you can try executing the last operation to successfully finish it.
+
+When some live cycle operation fails, that element will be set to status ```BROKEN```. Be careful, is allowed to execute any live cycle operation while status is ```BROKEN```. So the best way to resolve that status, is to stop and then, if still broken, destroy the element.
