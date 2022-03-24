@@ -231,6 +231,8 @@ Each live cycle implementation added to the controller will be sorted according 
 * PRIORITY_LOWER = max
 * or custom integer number
 
+You can modify live cycle queue (controller) in any time. Like add more init implementations from another init implementations!
+
 Name (```name```) for LiveCycleImpl are used for identify them. When any exception (Throwable) occurs, you will se that name in logs. Also, you can remove them from queue if you know names.
 When some exception occurs during live cycle operation, it does not empty the live cycle queue. So you can try executing the last operation to successfully finish it.
 
