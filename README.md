@@ -1,11 +1,11 @@
 # p1k-Server framework
 
-(still in developing, but working yet, tested on real projects)
+(still in developing, but working)
 
 Control multiple microservices over the same jvm. Load new elements and unload others in real-time without stopping your microservices. Also provides efficient communication between them.
 Combine elements and their settings like a lego constructor and gain your unique solution!
 
-This framework currently does not provide socket communications or any useful processing itself out of box. Use services, modules and extensions for add required implementation.
+This framework currently does not provide socket communications or any useful processing itself out of box. Use services, modules and extensions to add required implementation.
 
 Missing/planned:
 1. Upload to maven central
@@ -93,9 +93,6 @@ public final class XServiceConnection
 (1.0): 
 1 is the major version of contract/shared used. There are no way to load contract which have another major version. 0 is the version of impl part. There are no limits to add more sub-versions like 1.0.1.abc. If two or more elements found with the same type, subtype and major version, so the element of the greatest version will be loaded.
 
-More info coming soon
-...
-
 How to create a service shared
 ---
 This side (Shared) of the element type (Service) is a contract that describes format of Impl side and contains necessary classes and interfaces for inter-element communication.
@@ -136,9 +133,6 @@ public interface IXServiceConnection extends IServiceConnection {
 
 (1.0): 
 1 is the major version of contract/shared. 0 is the minor version that does not affect impl part. There are no limits to add more sub-versions like 1.0.1.abc.
-
-More info coming soon
-...
 
 Live Cycling
 ---
@@ -223,7 +217,7 @@ class XElement extends AElement { // for example, XService extends AService<IXSe
 }
 ```
 
-Each live cycle implementation added to the controller will be sorted according to ```priority```:
+Each live cycle implementation added to the controller will be sorted according to ```priority``` dynamically:
 * PRIORITY_HIGHEST = min
 * PRIORITY_HIGH = -1
 * PRIORITY_NORMAL = 0
@@ -231,9 +225,9 @@ Each live cycle implementation added to the controller will be sorted according 
 * PRIORITY_LOWER = max
 * or custom integer number
 
-You can modify live cycle queue (controller) in any time. Like add more init implementations from another init implementations!
+You can modify live cycle queue (controller) in any time. Like add more init implementations from another init implementation!
 
 Name (```name```) for LiveCycleImpl are used for identify them. When any exception (Throwable) occurs, you will se that name in logs. Also, you can remove them from queue if you know names.
 When some exception occurs during live cycle operation, it does not empty the live cycle queue. So you can try executing the last operation to successfully finish it.
 
-When some live cycle operation fails, that element will be set to status ```BROKEN```. Be careful, is allowed to execute any live cycle operation while status is ```BROKEN```. So the best way to resolve that status, is to stop and then, if still broken, destroy the element.
+When some live cycle operation fails, that element will be set to status ```BROKEN```. Be careful, is allowed to execute any live cycle operation while status is ```BROKEN```. So the best way to resolve that status is to stop and then, if still broken, destroy the element.
