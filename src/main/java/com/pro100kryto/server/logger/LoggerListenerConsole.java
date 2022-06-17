@@ -14,7 +14,7 @@ public class LoggerListenerConsole implements ILoggerListener{
     @Override
     public void write(String loggerName, LocalDateTime dateTime, MsgType msgType, String msg) {
         System.out.println(""
-                + "[" + dtf.format(dateTime).substring(0, 23) + "] "
+                + "[" + dtf.format(dateTime) + "] "
                 + "["+msgType.toString()+"] (" +loggerName+ ") "
                 + msg );
     }
