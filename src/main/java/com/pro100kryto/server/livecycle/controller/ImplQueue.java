@@ -1,22 +1,23 @@
 package com.pro100kryto.server.livecycle.controller;
 
-import javafx.util.Pair;
+import org.eclipse.collections.api.tuple.Pair;
+import org.eclipse.collections.impl.tuple.Tuples;
 
 import java.util.Comparator;
 import java.util.PriorityQueue;
 
 public final class ImplQueue<T> {
     private final PriorityQueue<Pair<ILiveCycleImplId, T>> queue =
-            new PriorityQueue<>(8, Comparator.comparingInt(value -> value.getKey().getPriority()));
+            new PriorityQueue<>(8, Comparator.comparingInt(value -> value.getOne().getPriority()));
 
     public void put(ILiveCycleImplId id, T impl) {
         remove(id.getName());
-        queue.add(new Pair<>(id, impl));
+        queue.add(Tuples.pair(id, impl));
     }
 
     public Pair<ILiveCycleImplId, T> find(String idName) {
         return queue.stream()
-                .filter(pair -> pair.getKey().getName().equals(idName))
+                .filter(pair -> pair.getOne().getName().equals(idName))
                 .findAny().orElse(null);
     }
 

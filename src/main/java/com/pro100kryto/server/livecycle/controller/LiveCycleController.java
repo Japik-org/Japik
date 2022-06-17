@@ -4,10 +4,10 @@ import com.pro100kryto.server.NotImplementedException;
 import com.pro100kryto.server.livecycle.*;
 import com.pro100kryto.server.logger.EmptyLogger;
 import com.pro100kryto.server.logger.ILogger;
-import javafx.util.Pair;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
+import org.eclipse.collections.api.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Objects;
@@ -181,7 +181,7 @@ public final class LiveCycleController implements ILiveCycle {
 
                 while (!initImplQueue.isEmpty()) {
                     final Pair<ILiveCycleImplId, IInit> pair = initImplQueue.peek();
-                    pair.getValue().init();
+                    pair.getTwo().init();
                     initImplQueue.remove(pair);
                 }
                 setStatus(INITIALIZED);
@@ -220,7 +220,7 @@ public final class LiveCycleController implements ILiveCycle {
 
                 while (!startImplQueue.isEmpty()) {
                     final Pair<ILiveCycleImplId, IStart> pair = startImplQueue.peek();
-                    pair.getValue().start();
+                    pair.getTwo().start();
                     startImplQueue.remove(pair);
                 }
                 setStatus(STARTED);
@@ -261,7 +261,7 @@ public final class LiveCycleController implements ILiveCycle {
 
                 while (!stopSlowImplQueue.isEmpty()) {
                     final Pair<ILiveCycleImplId, IStopSlow> pair = stopSlowImplQueue.peek();
-                    pair.getValue().stopSlow();
+                    pair.getTwo().stopSlow();
                     stopSlowImplQueue.remove(pair);
                 }
                 setStatus(STOPPED);
@@ -306,7 +306,7 @@ public final class LiveCycleController implements ILiveCycle {
         try{
             while (!stopForceImplQueue.isEmpty()) {
                 final Pair<ILiveCycleImplId, IStopForce> pair = stopForceImplQueue.peek();
-                pair.getValue().stopForce();
+                pair.getTwo().stopForce();
                 stopForceImplQueue.remove(pair);
             }
             setStatus(STOPPED);
@@ -332,7 +332,7 @@ public final class LiveCycleController implements ILiveCycle {
 
                 while (!destroyImplQueue.isEmpty()) {
                     final Pair<ILiveCycleImplId, IDestroy> pair = destroyImplQueue.peek();
-                    pair.getValue().destroy();
+                    pair.getTwo().destroy();
                     destroyImplQueue.remove(pair);
                 }
 
@@ -360,13 +360,13 @@ public final class LiveCycleController implements ILiveCycle {
 
         for (final Pair<ILiveCycleImplId, ICanBeStoppedSafe> pair : canBeStoppedSafeImplMap.values()) {
             try{
-                if (!pair.getValue().canBeStoppedSafe()) return false;
+                if (!pair.getTwo().canBeStoppedSafe()) return false;
 
             } catch (NotImplementedLiveCycleOperation ignored){
 
             } catch (Throwable throwable) {
                 logger.exception(throwable, "Failed canBeStoppedSafe elementName='"+elementName+
-                        "' idName='"+pair.getKey().getName()+"'. Return false.");
+                        "' idName='"+pair.getOne().getName()+"'. Return false.");
                 return false;
             }
         }
@@ -380,13 +380,13 @@ public final class LiveCycleController implements ILiveCycle {
 
         for (final Pair<ILiveCycleImplId, IAnnounceStop> pair : announceStopImplMap.values()) {
             try{
-                pair.getValue().announceStop();
+                pair.getTwo().announceStop();
 
             } catch (NotImplementedLiveCycleOperation ignored){
 
             } catch (Throwable throwable) {
                 logger.exception(throwable, "Failed announceStop elementName='"+elementName+
-                        "' idName='"+pair.getKey().getName()+"'");
+                        "' idName='"+pair.getOne().getName()+"'");
             }
         }
     }

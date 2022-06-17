@@ -1,6 +1,8 @@
 package com.pro100kryto.server.livecycle.controller;
 
-import javafx.util.Pair;
+
+import org.eclipse.collections.api.tuple.Pair;
+import org.eclipse.collections.impl.tuple.Tuples;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -11,7 +13,7 @@ public final class ImplMap<T> {
             new HashMap<>(8);
 
     public void put(ILiveCycleImplId id, T impl) {
-        final Pair<ILiveCycleImplId, T> pair = new Pair<>(id, impl);
+        final Pair<ILiveCycleImplId, T> pair = Tuples.pair(id, impl);
         map.put(id, pair);
     }
 
