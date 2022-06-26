@@ -1,4 +1,4 @@
-# p1k-Server framework
+# Japik framework
 
 (still in developing, but working)
 
