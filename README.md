@@ -23,7 +23,7 @@ Missing/planned:
 Elements:
 1. **Services** - main working elements. Each service implementation (Impl) is isolated from each other on class loaders level. But there is a way to direct communication between services via custom interfaces (Connections/Shared);
 2. **Modules** - small replaceable elements. Is too similar to services. Are used to be loaded into a specific service;
-3. **Extensions** - elements capable to manage whole server. Can be used, for example: setting up elements, monitoring, calculate metrics, display GUI, provide a control over network, or some innovations which can be used from other elements.
+3. **Extensions** - elements capable to manage whole server. Can be used, for example: setting up elements, monitoring, calculate metrics, display GUI, provide a control over network, or provide some innovations which can be used from other elements.
 
 How to create a service impl
 ---
@@ -142,9 +142,9 @@ Live Cycling
 
 0. initializing java object
 1. init() - initialize variables, settings, custom live cycling, etc (fill RAM)
-2. start() - start threads, processing
-3. stopSlow() or stopForce() - stop/pause processing
-4. destroy - release resources
+2. start() - start threads, allow processing
+3. stopSlow() and stopForce() - stop or pause processing
+4. destroy - release all resources (free RAM)
 
 *Live cycle combination examples*
 
@@ -227,7 +227,7 @@ Each live cycle implementation added to the controller will be sorted according 
 
 You can modify live cycle queue (controller) in any time. Like add more init implementations from another init implementation!
 
-Name (```name```) for LiveCycleImpl are used for identify them. When any exception (Throwable) occurs, you will se that name in logs. Also, you can remove them from queue if you know names.
-When some exception occurs during live cycle operation, it does not empty the live cycle queue. So you can try executing the last operation to successfully finish it.
+Name (```name```) for LiveCycleImpl are used for identify them. When any exception (Throwable) occurs, you will see that name in logs. Also, you can remove them from queue if you know names.
+Successfully finished LiveCycleImpl will be removed from the queue. When any exception occurs during live cycle operation, it will not be removed from the live cycle queue. So you can change something and then try execute the same live cycle operation (init/start/stop/...) to successfully finish it.
 
 When some live cycle operation fails, that element will be set to status ```BROKEN```. Be careful, is allowed to execute any live cycle operation while status is ```BROKEN```. So the best way to resolve that status is to stop and then, if still broken, destroy the element.
