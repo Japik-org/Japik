@@ -2,7 +2,7 @@
 
 (still in developing, but working)
 
-Control multiple microservices over the same jvm. Load new elements and unload others in real-time without stopping your microservices. Also provides efficient communication between them.
+Control multiple microservices loaded into the same jvm. Load new elements and unload others in real-time without stopping your microservices. Also provides efficient communication between them.
 Combine elements and their settings like a lego constructor and gain your unique solution!
 
 This framework currently does not provide socket communications or any useful processing itself out of box. Use services, modules and extensions to add required implementation.
@@ -35,7 +35,8 @@ __x-service-impl-1.0.jar__ (or __x-service-impl.jar__, or just __x-service.jar__
 • Subtype: X
 • Side: Impl
 
-*MANIFEST.MF*
+*MANIFEST.MF*  
+(*) - required
 ```manifest
 Manifest-Version: 1.0
 
@@ -103,7 +104,8 @@ __x-service-shared-1.0.jar__ (or __x-service-shared.jar__, or just __x-service.j
 • Subtype: X
 • Side: Shared
 
-*MANIFEST.MF*
+*MANIFEST.MF*  
+(*) - required
 ```manifest
 Manifest-Version: 1.0
 
@@ -136,7 +138,7 @@ public interface IXServiceConnection extends IServiceConnection {
 
 Live Cycling
 ---
-(refactoring and simplifications needed)
+(TODO: refactoring and simplifications needed)
 
 *Live Cycle operation*
 
@@ -144,7 +146,7 @@ Live Cycling
 1. init() - initialize variables, settings, custom live cycling, etc (fill RAM)
 2. start() - start threads, allow processing
 3. stopSlow() and stopForce() - stop or pause processing
-4. destroy - release all resources (free RAM)
+4. destroy() - release all resources (free RAM)
 
 *Live cycle combination examples*
 
