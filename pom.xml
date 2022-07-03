@@ -5,9 +5,9 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.pro100kryto.server</groupId>
-    <artifactId>Server</artifactId>
-    <version>0.5.1</version>
+    <groupId>com.japik</groupId>
+    <artifactId>Japik</artifactId>
+    <version>0.6.0</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -19,7 +19,7 @@
         <dependency>
             <groupId>org.jetbrains</groupId>
             <artifactId>annotations</artifactId>
-            <version>22.0.0</version>
+            <version>23.0.0</version>
         </dependency>
         <dependency>
             <groupId>commons-cli</groupId>
@@ -39,12 +39,12 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.22</version>
+            <version>1.18.24</version>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>31.0.1-jre</version>
+            <version>31.1-jre</version>
         </dependency>
     </dependencies>
 

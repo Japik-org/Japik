@@ -58,7 +58,7 @@ Import-All-Packages: false (By default is false and will be loaded classes only 
 
 *Java*
 ```java
-package com.example.server.services.x;
+package com.example.japik.services.x;
 
 public final class XService extends AService<IXServiceConnection> {
     ... // your custom variables
@@ -74,16 +74,16 @@ public final class XService extends AService<IXServiceConnection> {
 ```
 
 ```java
-package com.pro100kryto.server.services.x;
+package com.example.japik.services.x;
 
 public final class XServiceConnection
         extends AServiceConnection<XService, IXServiceConnection>
         implements IXServiceConnection {
    ... // your custom variables
-   
-   public XServiceConnection(@NotNull XService service, ServiceConnectionParams params) {
-      super(service, params);
-   }
+
+    public XServiceConnection(@NotNull XService service, ServiceConnectionParams params) {
+        super(service, params);
+    }
    
    ... // your custom connection implementation below
 }
@@ -112,7 +112,7 @@ Manifest-Version: 1.0
 Name: Service-Shared (*)
 Subtype: X (*)
 Version: 1.0 (*)
-Base-Package: com.example.server (*)
+Base-Package: com.example.japik (*)
 Lib-Impl-Jar: jar jar (include private libs by file name. If a parent class loader already contain a similar lib, that parent lib will be skipped and new lib will be used instead) 
 Lib-Shared-Jar: jar jar (connect shared libs by file name)
 Module-Shared-Subtype: A B C (connect module interfaces by Shared-Subtype)
@@ -124,7 +124,7 @@ Service-Shared-Jar: jar jar (connect service interfaces by file name)
 
 *java*
 ```java
-package com.example.server.services.x.shared; // or com.example.server.services.x.connection
+package com.example.japik.services.x.shared; // or com.example.server.services.x.connection
 
 public interface IXServiceConnection extends IServiceConnection {
     ... // define your custom methods for intercommunication between services
@@ -157,15 +157,16 @@ Live Cycling
 4. init -> destroy -> init -> ...
 
 *java*
+
 ```java
-import com.pro100kryto.server.livecycle.controller.LiveCycleController;
+import LiveCycleController;
 
 class XElement extends AElement { // for example, XService extends AService<IXServiceConnection>
    @Override
    protected void initLiveCycleController(LiveCycleController liveCycleController) {
       liveCycleController.getInitImplQueue().put(new LiveCycleImplId(
               "init example", LiveCycleController.PRIORITY_HIGH
-      ),() -> {
+      ), () -> {
          ... // your custom initialization
       });
       liveCycleController.getStartImplQueue().put(...)
@@ -175,35 +176,43 @@ class XElement extends AElement { // for example, XService extends AService<IXSe
       liveCycleController.putImplAll(new XElementLiveCycleImpl1());
       liveCycleController.putImplAll(new XElementLiveCycleImpl2());
    }
-   
+
    private class XElementLiveCycleImpl1 implements ILiveCycleImpl, ILiveCycleImplId {
       @Getter
       private final String name = "XElementLiveCycleImpl1";
-      @Getter @Setter
+      @Getter
+      @Setter
       private int priority = LiveCycleController.PRIORITY_NORMAL;
 
       // your must implement all
-      
-      @Override public void init() throws Throwable {
+
+      @Override
+      public void init() throws Throwable {
          // your another custom initialization
       }
 
-      @Override public void start() throws Throwable {
+      @Override
+      public void start() throws Throwable {
       }
 
-      @Override public void stopSlow() throws Throwable {
+      @Override
+      public void stopSlow() throws Throwable {
       }
 
-      @Override public void stopForce() {
+      @Override
+      public void stopForce() {
       }
 
-      @Override public void destroy() {
+      @Override
+      public void destroy() {
       }
 
-      @Override public void announceStop() {
+      @Override
+      public void announceStop() {
       }
 
-      @Override public boolean canBeStoppedSafe() {
+      @Override
+      public boolean canBeStoppedSafe() {
          return true;
       }
    }
@@ -211,7 +220,8 @@ class XElement extends AElement { // for example, XService extends AService<IXSe
    private class XElementLiveCycleImpl2 extends EmptyLiveCycleImpl implements ILiveCycleImplId {
       @Getter
       private final String name = "XElementLiveCycleImpl2";
-      @Getter @Setter
+      @Getter
+      @Setter
       private int priority = LiveCycleController.PRIORITY_LOW;
       
       ... // you can override all or nothing
