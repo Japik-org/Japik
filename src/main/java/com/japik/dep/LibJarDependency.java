@@ -43,7 +43,7 @@ public final class LibJarDependency extends JarDependency implements ISharedDepe
                 .forEach(classInfo -> {
                     try {
                         loadFromCL.loadClass(classInfo.getName());
-                    } catch (ClassNotFoundException ignored) {
+                    } catch (ClassNotFoundException | NoClassDefFoundError ignored) {
                     }
                 });
     }
