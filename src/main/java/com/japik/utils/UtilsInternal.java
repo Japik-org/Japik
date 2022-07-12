@@ -59,7 +59,7 @@ public class UtilsInternal {
                 .forEach(classInfo -> {
                     try {
                         classLoader.loadClass(classInfo.getName());
-                    } catch (ClassNotFoundException ignored) {
+                    } catch (ClassNotFoundException | NoClassDefFoundError ignored) {
                     }
                 });
     }
@@ -77,7 +77,7 @@ public class UtilsInternal {
                 .forEach(classInfo -> {
                     try {
                         classLoader.loadClass(classInfo.getName());
-                    } catch (ClassNotFoundException ignored) {
+                    } catch (ClassNotFoundException | NoClassDefFoundError ignored) {
                     }
                 });
     }

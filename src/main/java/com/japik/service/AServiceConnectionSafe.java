@@ -1,5 +1,6 @@
 package com.japik.service;
 
+import java.rmi.RemoteException;
 import java.util.concurrent.locks.ReentrantLock;
 
 public abstract class AServiceConnectionSafe <SC extends IServiceConnection> implements IServiceConnectionSafe<SC> {
@@ -20,7 +21,7 @@ public abstract class AServiceConnectionSafe <SC extends IServiceConnection> imp
     }
 
     @Override
-    public SC getServiceConnection() throws Throwable {
+    public SC getServiceConnection() throws RemoteException {
         if ((serviceConnection == null || serviceConnection.isClosed()) && isAutoReconnectEnabled){
             refreshLock.lock();
             try{
