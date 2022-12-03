@@ -26,7 +26,7 @@ public final class SettingsManager implements ISettingsCallback{
         keyListenerMap = new HashMap<>(0);
     }
 
-    public SettingsManager(Settings settings, ISettingsManagerCallback managerCallback, ILogger logger) {
+    public SettingsManager(ISettingsManagerCallback managerCallback, ILogger logger, Settings settings) {
         this.settings = Objects.requireNonNull(settings);
         settings.setCallback(this);
         this.managerCallback = Objects.requireNonNull(managerCallback);

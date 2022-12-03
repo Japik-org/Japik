@@ -37,7 +37,7 @@ public abstract class AElement implements IElement, ISettingsManagerCallback {
                 .build();
 
         settings = new Settings();
-        settingsManager = new SettingsManager(settings, this, logger);
+        settingsManager = new SettingsManager(this, logger, settings);
     }
 
     @Override

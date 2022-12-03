@@ -34,7 +34,7 @@ public abstract class AExtension <EC extends IExtensionConnection> extends AElem
 
         // settings
         settings = new Settings();
-        settingsManager = new SettingsManager(settings, this, logger);
+        settingsManager = new SettingsManager(this, logger, settings);
     }
 
     @Override

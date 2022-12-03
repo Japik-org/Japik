@@ -63,7 +63,7 @@ public final class Japik implements ISettingsManagerCallback {
         liveCycleController.setLogger(mainLogger);
 
         settings = new Settings();
-        settingsManager = new SettingsManager(settings, this, mainLogger);
+        settingsManager = new SettingsManager(this, mainLogger, settings);
 
         projectProperties = new ProjectProperties();
         projectProperties.load(ClassLoader.getSystemClassLoader().getResourceAsStream("project.properties"));
