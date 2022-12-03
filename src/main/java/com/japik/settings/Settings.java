@@ -14,7 +14,7 @@ public class Settings {
     private final ReentrantLock locker = new ReentrantLock();
     protected boolean changed = true;
 
-    public Settings(int initialCapacity, @Nullable ISettingsCallback callback) {
+    public Settings(@Nullable ISettingsCallback callback, int initialCapacity) {
         map = new HashMap<>(initialCapacity);
         this.callback = callback;
     }
