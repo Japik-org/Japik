@@ -44,7 +44,7 @@ public class Settings {
             changed = true;
             try {
                 callback.onValueChanged(key, value);
-            } catch (IllegalStateException ignored){
+            } catch (IllegalStateException | NullPointerException ignored){
             }
 
         } finally {
