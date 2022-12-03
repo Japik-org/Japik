@@ -28,14 +28,6 @@ public class Settings {
         map = new HashMap<>();
     }
 
-    public void apply() throws SettingsApplyIncompleteException {
-        callback.apply();
-    }
-
-    public boolean applyIfChanged() throws SettingsApplyIncompleteException {
-        return callback.applyIfChanged();
-    }
-
     public String put(String key, String value) throws SettingsApplyIncompleteException {
         locker.lock();
         final String oldVal;
