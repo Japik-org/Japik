@@ -38,7 +38,7 @@ public abstract class AExtension <EC extends IExtensionConnection> extends AElem
     }
 
     @Override
-    public abstract EC createExtensionConnection();
+    public abstract EC createExtensionConnection(ExtensionConnectionParams params);
 
     //region utils
 
