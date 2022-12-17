@@ -20,13 +20,14 @@ import org.jetbrains.annotations.Nullable;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class AService <SC extends IServiceConnection> extends AElement
-        implements IService<SC>,
-        ISettingsManagerCallback, IServiceConnectionCallback {
+        implements IService<SC>, ISettingsManagerCallback {
 
     protected final IServiceCallback serviceCallback;
     protected final ModuleLoader moduleLoader;
 
     protected final BaseServiceSettings baseSettings;
+
+    private final OnCloseServiceConnection onCloseServiceConnection = new OnCloseServiceConnection();
 
     private boolean serviceConnectionMultipleEnabled;
     private int serviceConnectionMultipleMaxCount;
@@ -94,7 +95,7 @@ public abstract class AService <SC extends IServiceConnection> extends AElement
         final SC sc = createServiceConnection(new ServiceConnectionParams(
                 scId,
                 logger,
-                this
+                onCloseServiceConnection
         ));
         serviceConnectionMap.put(scId, sc);
         return sc;
@@ -102,9 +103,11 @@ public abstract class AService <SC extends IServiceConnection> extends AElement
 
     protected abstract SC createServiceConnection(ServiceConnectionParams params);
 
-    @Override
-    public void onCloseServiceConnection(int id) {
-        serviceConnectionMap.remove(id);
+    private final class OnCloseServiceConnection implements IServiceConnectionCallback {
+        @Override
+        public void onCloseServiceConnection(int id) {
+            serviceConnectionMap.remove(id);
+        }
     }
 
     //region utils
