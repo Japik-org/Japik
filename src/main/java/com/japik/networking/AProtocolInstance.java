@@ -31,11 +31,11 @@ public abstract class AProtocolInstance implements IProtocolInstance {
     protected abstract IServiceConnection getServiceConnectionImpl(String serviceName) throws RemoteException;
 
     @Override
-    public synchronized final <SC extends IServiceConnection> IServiceConnectionSafe<SC> createServiceConnectionSafe(String serviceName) throws RemoteException {
+    public synchronized final <SC extends IServiceConnection> IServiceConnectionSafe<SC> createServiceConnectionSafe(String serviceName) {
         throwIfClosed();
         return createServiceConnectionSafeImpl(serviceName);
     }
-    protected abstract <SC extends IServiceConnection> IServiceConnectionSafe<SC> createServiceConnectionSafeImpl(String serviceName) throws RemoteException;
+    protected abstract <SC extends IServiceConnection> IServiceConnectionSafe<SC> createServiceConnectionSafeImpl(String serviceName);
 
     @Override
     public synchronized final void close() throws Exception {
