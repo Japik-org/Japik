@@ -1,7 +1,5 @@
 package com.japik.service;
 
-import lombok.SneakyThrows;
-
 import java.rmi.RemoteException;
 
 public final class ServiceConnectionSafeFromServiceCallback <SC extends IServiceConnection> extends AServiceConnectionSafe<SC> {
@@ -11,12 +9,6 @@ public final class ServiceConnectionSafeFromServiceCallback <SC extends IService
     public ServiceConnectionSafeFromServiceCallback(IServiceCallback serviceCallback, String serviceName) {
         super(serviceName);
         this.serviceCallback = serviceCallback;
-    }
-
-    @SneakyThrows
-    @Override
-    public SC getServiceConnection() throws RemoteException {
-        return super.getServiceConnection();
     }
 
     /**
