@@ -15,6 +15,11 @@ public final class ImplQueue<T> {
         queue.add(Tuples.pair(id, impl));
     }
 
+    public void put(String idName, T impl) {
+        final ILiveCycleImplId id = new LiveCycleImplId(idName);
+        put(id, impl);
+    }
+
     public Pair<ILiveCycleImplId, T> find(String idName) {
         return queue.stream()
                 .filter(pair -> pair.getOne().getName().equals(idName))

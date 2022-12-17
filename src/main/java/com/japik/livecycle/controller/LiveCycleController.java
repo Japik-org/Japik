@@ -143,6 +143,11 @@ public final class LiveCycleController implements ILiveCycle {
         announceStopImplMap.put(id, liveCycleImpl);
     }
 
+    public void putImplAll(String idName, @NotNull ILiveCycleImpl liveCycleImpl) {
+        final ILiveCycleImplId id = new LiveCycleImplId(idName);
+        putImplAll(id, liveCycleImpl);
+    }
+
     public void clearImplQueue() {
         initImplQueue.clear();
         startImplQueue.clear();
