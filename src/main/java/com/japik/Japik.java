@@ -9,6 +9,7 @@ import com.japik.livecycle.controller.LiveCycleController;
 import com.japik.logger.ILogger;
 import com.japik.logger.LoggerManager;
 import com.japik.logger.SystemOutLogger;
+import com.japik.networking.Networking;
 import com.japik.properties.ProjectProperties;
 import com.japik.service.IService;
 import com.japik.service.ServiceLoader;
@@ -47,6 +48,9 @@ public final class Japik implements ISettingsManagerCallback {
     private final SettingsManager settingsManager;
     @Nullable
     private URLClassLoader serverClassLoader;
+
+    @Getter
+    private final Networking networking = new Networking(this);
 
 
     public Japik(Path workingPath) throws IOException {
