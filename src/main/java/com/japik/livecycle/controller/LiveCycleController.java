@@ -19,7 +19,7 @@ import static com.japik.livecycle.LiveCycleStatus.AdvancedNames.*;
 public final class LiveCycleController implements ILiveCycle {
     private ILogger logger;
     private final String elementName;
-    private final LiveCycleStatus status;
+    private LiveCycleStatus status;
     private ReentrantLock liveCycleLock;
     private boolean isEnabledAutoFixBroken = false;
 
@@ -91,7 +91,7 @@ public final class LiveCycleController implements ILiveCycle {
         this.logger = Objects.requireNonNull(logger);
         this.elementName = elementName;
         this.liveCycleLock = Objects.requireNonNull(lock);
-        this.status = new LiveCycleStatus(liveCycleLock);
+        this.status = new LiveCycleStatus();
 
         restoreDefaultImpl();
     }
@@ -220,7 +220,7 @@ public final class LiveCycleController implements ILiveCycle {
 
         try {
             try {
-                status.setStopAnnounced(false);
+                status = new LiveCycleStatus(status, false);
                 setStatus(STARTING);
 
                 while (!startImplQueue.isEmpty()) {
@@ -382,7 +382,12 @@ public final class LiveCycleController implements ILiveCycle {
 
     @Override
     public void announceStop() {
-        status.setStopAnnounced(true);
+        liveCycleLock.lock();
+        try {
+            status = new LiveCycleStatus(status.getAdvancedName(), true);
+        } finally {
+            liveCycleLock.unlock();
+        }
 
         for (final Pair<ILiveCycleImplId, IAnnounceStop> pair : announceStopImplMap.values()) {
             try{
@@ -398,7 +403,30 @@ public final class LiveCycleController implements ILiveCycle {
     }
 
     private void setStatus(LiveCycleStatus.AdvancedNames statusName){
-        this.status.set(statusName);
-        logger.info(elementName+" status = "+status);
+        liveCycleLock.lock();
+        try {
+            this.status = new LiveCycleStatus(this.status, statusName);
+            logger.info(elementName + " status = " + status);
+        } finally {
+            liveCycleLock.unlock();
+        }
+    }
+
+    public void setStatus(LiveCycleStatus status) {
+        liveCycleLock.lock();
+        try {
+            this.status = status;
+        } finally {
+            liveCycleLock.unlock();
+        }
+    }
+
+    public LiveCycleStatus getStatus() {
+        liveCycleLock.lock();
+        try {
+            return status;
+        } finally {
+            liveCycleLock.unlock();
+        }
     }
 }

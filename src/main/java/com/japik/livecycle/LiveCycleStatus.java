@@ -1,29 +1,37 @@
 package com.japik.livecycle;
 
 import lombok.Getter;
-import lombok.Setter;
 import lombok.Synchronized;
 
-import java.util.concurrent.locks.ReentrantLock;
-
+@Getter
 public final class LiveCycleStatus {
-    private final ReentrantLock liveCycleLocker;
+    private final BasicNames basicName;
+    private final AdvancedNames advancedName;
+    private final boolean stopAnnounced;
 
-    @Getter(onMethod_={@Synchronized})
-    private BasicNames basicName;
-    @Getter(onMethod_={@Synchronized})
-    private AdvancedNames advancedName;
 
-    @Getter(onMethod_={@Synchronized}) @Setter(onMethod_={@Synchronized})
-    private boolean stopAnnounced;
-
-    public LiveCycleStatus(){
-        this(new ReentrantLock());
+    public LiveCycleStatus(LiveCycleStatus status, boolean stopAnnounced) {
+        this.advancedName = status.getAdvancedName();
+        this.basicName = status.getBasicName();
+        this.stopAnnounced = stopAnnounced;
     }
 
-    public LiveCycleStatus(ReentrantLock liveCycleLocker) {
-        this.liveCycleLocker = liveCycleLocker;
-        set(AdvancedNames.NOT_INITIALIZED);
+    public LiveCycleStatus(LiveCycleStatus status, AdvancedNames advancedName) {
+        this(advancedName, status.stopAnnounced);
+    }
+
+    public LiveCycleStatus(AdvancedNames advancedName, boolean stopAnnounced){
+        this.advancedName = advancedName;
+        this.basicName = convertToBasic(advancedName);
+        this.stopAnnounced = stopAnnounced;
+    }
+
+    public LiveCycleStatus(AdvancedNames advancedName) {
+        this(advancedName, false);
+    }
+
+    public LiveCycleStatus() {
+        this(AdvancedNames.NOT_INITIALIZED, false);
     }
 
     @Synchronized
@@ -63,17 +71,6 @@ public final class LiveCycleStatus {
                 || is(AdvancedNames.STARTED)
                 || is(AdvancedNames.STOPPED)
                 || is(AdvancedNames.DESTROYED);
-    }
-
-    @Synchronized
-    public void set(AdvancedNames advancedName){
-        liveCycleLocker.lock();
-        try {
-            this.advancedName = advancedName;
-            this.basicName = convertToBasic(advancedName);
-        } finally {
-            liveCycleLocker.unlock();
-        }
     }
 
     public static BasicNames convertToBasic(AdvancedNames advancedName){
