@@ -315,6 +315,7 @@ public final class LiveCycleController implements ILiveCycle {
                 stopForceImplQueue.remove(pair);
             }
             setStatus(STOPPED);
+            stopSlowImplQueue.clear();
 
         } catch (Throwable throwable){
             setStatus(BROKEN);
