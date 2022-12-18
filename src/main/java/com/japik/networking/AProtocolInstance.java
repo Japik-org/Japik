@@ -46,6 +46,9 @@ public abstract class AProtocolInstance implements IProtocolInstance {
 
     protected abstract void onClose() throws Exception;
 
+    /**
+     * @throws IllegalStateException is closed
+     */
     protected final void throwIfClosed() {
         if (isClosed) throw new IllegalStateException("Protocol instance '"+protocolName+"' is closed.");
     }
