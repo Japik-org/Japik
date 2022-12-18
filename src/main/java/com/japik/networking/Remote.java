@@ -56,7 +56,7 @@ public final class Remote implements ISettingsManagerCallback {
 
         @Override
         public void start() throws Throwable {
-            protocolInstance = protocol.newInstance(protocolSettingsManager.getSettings());
+            protocolInstance = protocol.newInstance(protocolSettings);
         }
 
         @Override
