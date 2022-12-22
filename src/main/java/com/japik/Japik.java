@@ -95,9 +95,7 @@ public final class Japik implements ISettingsManagerCallback {
 
             serverClassLoader = new URLClassLoader(new URL[0], parentClassLoader);
 
-            dependencyLord = new DependencyLord(
-                    Paths.get(server.getWorkingPath().toString(), "core")
-            );
+            dependencyLord = new DependencyLord(server.workingPath);
 
             serviceLoader = new ServiceLoader(
                     server,
