@@ -49,7 +49,7 @@
     </dependencies>
 
     <build>
-        <finalName>${artifactId}</finalName>
+        <finalName>japik</finalName>
 
         <resources>
             <resource>
@@ -74,6 +74,11 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-dependency-plugin</artifactId>
                     <version>2.10</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>3.2.2</version>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -113,6 +118,7 @@
                             <mainClass>com.japik.Starter</mainClass>
                         </manifest>
                     </archive>
+                    <outputDirectory>${project.basedir}/target/out</outputDirectory>
                 </configuration>
             </plugin>
             <plugin>
@@ -125,7 +131,7 @@
                             <goal>copy-dependencies</goal>
                         </goals>
                         <configuration>
-                            <outputDirectory>${project.build.directory}/libs</outputDirectory>
+                            <outputDirectory>${project.build.directory}/out/libs</outputDirectory>
                             <overWriteSnapshots>true</overWriteSnapshots>
                         </configuration>
                     </execution>
