@@ -60,6 +60,13 @@ public final class ProtocolCollection extends AbstractCollection<IProtocol> {
                     return parentIterator.next();
                 }
             }
+
+            @Override
+            public void remove() {
+                synchronized (locker) {
+                    parentIterator.remove();
+                }
+            }
         };
     }
 
