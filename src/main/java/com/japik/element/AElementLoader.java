@@ -216,7 +216,6 @@ public abstract class AElementLoader <T extends IElement> {
             }
 
             nameElementMap.remove(elName);
-            //nameClassLoaderMap.remove(elName);
 
             dependencyLord.release(element.getTenant());
 
