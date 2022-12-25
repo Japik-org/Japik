@@ -189,10 +189,6 @@ public abstract class AElementLoader <T extends IElement> {
                                        Tenant elTenant) throws Throwable;
 
     public final void unload(String elName) throws ElementNotFoundException {
-        if (server.getLiveCycle().getStatus().isNotInitialized()){
-            throw new IllegalStateException();
-        }
-
         lock.lock();
         try {
 
