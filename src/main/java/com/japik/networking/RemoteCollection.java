@@ -26,12 +26,14 @@ public final class RemoteCollection extends AbstractCollection<Remote> {
         }
     }
 
-    public void add(Remote.Builder remoteBuilder) {
+    public Remote add(Remote.Builder remoteBuilder) {
         synchronized (locker) {
             if (remoteMap.containsKey(remoteBuilder.getRemoteName())) {
                 throw new IllegalArgumentException("Remote '" + remoteBuilder.getRemoteName() + "' already exists.");
             }
-            remoteMap.put(remoteBuilder.getRemoteName(), remoteBuilder.build(server));
+            final Remote remote =  remoteBuilder.build(server);
+            remoteMap.put(remoteBuilder.getRemoteName(), remote);
+            return remote;
         }
     }
 
