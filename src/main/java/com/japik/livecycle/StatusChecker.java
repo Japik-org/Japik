@@ -35,7 +35,7 @@ public final class StatusChecker {
      * @throws IllegalStateException
      */
     public static void checkStopForce(LiveCycleStatus status){
-        if (!status.is(INITIALIZED) && !status.isBroken()) throw new IllegalStateException("Is not initialized");
+        if (!status.is(STARTED) && !status.isBroken()) throw new IllegalStateException("Is not started");
     }
 
     /**
