@@ -9,6 +9,7 @@ import com.japik.settings.Settings;
 import com.japik.settings.SettingsManager;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.experimental.Accessors;
 import org.jetbrains.annotations.Nullable;
 
 @Getter
@@ -91,16 +92,24 @@ public final class Remote implements ISettingsManagerCallback {
 
 
     @Getter @Setter
+    @Accessors(chain = true)
     public static final class Builder {
         private String remoteName;
         private String protocolName;
-        private Settings protocolSettings;
-        @Nullable
-        private ILogger logger;
+
+        /** optional */
+        @Nullable private Settings protocolSettings;
+
+        /** optional */
+        @Nullable private ILogger logger;
 
         public Remote build(Japik server) {
             if (logger == null) {
                 logger = server.getLoggerManager().getMainLogger();
+            }
+
+            if (protocolSettings == null) {
+                protocolSettings = new Settings();
             }
 
             return new Remote(
