@@ -72,6 +72,13 @@ public final class RemoteCollection extends AbstractCollection<Remote> {
                     return parentIterator.next();
                 }
             }
+
+            @Override
+            public void remove() {
+                synchronized (locker) {
+                    parentIterator.remove();
+                }
+            }
         };
     }
 
