@@ -17,6 +17,7 @@ import java.lang.instrument.IllegalClassFormatException;
 import java.lang.reflect.Constructor;
 import java.net.URL;
 import java.nio.file.Path;
+import java.rmi.RemoteException;
 
 public final class ServiceLoader extends AElementLoader<IService<?>> {
 
@@ -121,7 +122,7 @@ public final class ServiceLoader extends AElementLoader<IService<?>> {
         }
 
         @Override
-        public <SC extends IServiceConnection> SC getServiceConnection(String serviceName) throws ElementNotFoundException {
+        public <SC extends IServiceConnection> SC getServiceConnection(String serviceName) throws ElementNotFoundException, RemoteException {
             return (SC) getOrThrow(serviceName).getServiceConnection();
         }
 
