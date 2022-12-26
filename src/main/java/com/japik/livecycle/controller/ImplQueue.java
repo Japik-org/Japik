@@ -5,10 +5,13 @@ import org.eclipse.collections.impl.tuple.Tuples;
 
 import java.util.Comparator;
 import java.util.PriorityQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class ImplQueue<T> {
     private final PriorityQueue<Pair<ILiveCycleImplId, T>> queue =
             new PriorityQueue<>(8, Comparator.comparingInt(value -> value.getOne().getPriority()));
+
+    private final AtomicInteger automaticPriority = new AtomicInteger(0);
 
     public void put(ILiveCycleImplId id, T impl) {
         remove(id.getName());
@@ -17,6 +20,16 @@ public final class ImplQueue<T> {
 
     public void put(String idName, T impl) {
         final ILiveCycleImplId id = new LiveCycleImplId(idName);
+        put(id, impl);
+    }
+
+    public void put(String idName, int priority, T impl) {
+        final ILiveCycleImplId id = new LiveCycleImplId(idName, priority);
+        put(id, impl);
+    }
+
+    public void putAutoPriorityOrder(String idName, T impl) {
+        final ILiveCycleImplId id = new LiveCycleImplId(idName, automaticPriority.incrementAndGet());
         put(id, impl);
     }
 
