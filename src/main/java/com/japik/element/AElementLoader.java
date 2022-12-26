@@ -156,7 +156,7 @@ public abstract class AElementLoader <T extends IElement> {
                         Objects.requireNonNull(implDepBuilder.getTenant()));
 
                 nameElementMap.put(elName, element);
-                logger.info("New element loaded: " + element.toString());
+                logger.info("New element loaded: " + element.toString() + " to "+this.getClass().getSimpleName());
                 return element;
 
             } catch (IOException | ResolveDependencyException | IllegalElementFormatException e){
@@ -197,7 +197,7 @@ public abstract class AElementLoader <T extends IElement> {
                 throw new ElementNotFoundException(elementTypeLoader, elName);
             }
 
-            logger.info("Unloading element: " + element.toString());
+            logger.info("Unloading element: " + element.toString() + " from "+this.getClass().getSimpleName());
 
             if (element.getLiveCycle().getStatus().isStarted() || element.getLiveCycle().getStatus().isBroken()) {
                 try {
@@ -219,7 +219,7 @@ public abstract class AElementLoader <T extends IElement> {
 
             dependencyLord.release(element.getTenant());
 
-            logger.info("Element name='" + elName + "' unloaded");
+            logger.info("Element name='" + elName + "' unloaded from " + this.getClass().getSimpleName());
 
         } finally {
             lock.unlock();
