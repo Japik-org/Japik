@@ -17,6 +17,6 @@ public interface IServiceCallback {
     /**
      * @throws ClassCastException
      */
-    <SC extends IServiceConnection> SC getServiceConnection(String serviceName) throws ElementNotFoundException, RemoteException;
+    <SC extends IServiceConnection> SC getServiceConnection(String serviceName) throws RemoteException, ServiceNotFoundException;
     <SC extends IServiceConnection> IServiceConnectionSafe<SC> createServiceConnectionSafe(String serviceName);
 }

@@ -6,7 +6,6 @@ import com.japik.dep.ElementImplJarDependency;
 import com.japik.dep.ServiceImplJarDependency;
 import com.japik.dep.Tenant;
 import com.japik.element.AElementLoader;
-import com.japik.element.ElementNotFoundException;
 import com.japik.element.ElementType;
 import com.japik.logger.ILogger;
 import com.japik.logger.LoggerAlreadyExistsException;
@@ -17,7 +16,7 @@ import java.lang.instrument.IllegalClassFormatException;
 import java.lang.reflect.Constructor;
 import java.net.URL;
 import java.nio.file.Path;
-import java.rmi.RemoteException;
+import java.util.Objects;
 
 public final class ServiceLoader extends AElementLoader<IService<?>> {
 
@@ -130,8 +129,26 @@ public final class ServiceLoader extends AElementLoader<IService<?>> {
         }
 
         @Override
-        public <SC extends IServiceConnection> SC getServiceConnection(String serviceName) throws ElementNotFoundException, RemoteException {
-            return (SC) getOrThrow(serviceName).getServiceConnection();
+        public <SC extends IServiceConnection> SC getServiceConnection(String serviceName) throws ServiceNotFoundException {
+            final SC sc = server.getNetworking().getRemoteCollection().stream()
+                    .map(remote -> {
+                        try {
+                            return remote.getProtocolInstance().<SC>getServiceConnection(serviceName);
+                        } catch (ServiceNotFoundException ignored) {
+                        } catch (Exception exception) {
+                            logger.warn("Failed to get service connection on remote '"+remote.getName()+"'", exception);
+                        }
+                        return null;
+                    })
+                    .filter(Objects::nonNull)
+                    .findAny()
+                    .orElse(null);
+
+            if (sc == null) {
+                throw new ServiceNotFoundException(serviceName);
+            }
+
+            return sc;
         }
 
         @Override
