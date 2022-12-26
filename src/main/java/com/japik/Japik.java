@@ -10,6 +10,7 @@ import com.japik.logger.ILogger;
 import com.japik.logger.LoggerManager;
 import com.japik.logger.SystemOutLogger;
 import com.japik.networking.IProtocol;
+import com.japik.networking.LocalProtocol;
 import com.japik.networking.Networking;
 import com.japik.networking.Remote;
 import com.japik.properties.ProjectProperties;
@@ -23,7 +24,6 @@ import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 public final class Japik implements ISettingsManagerCallback {
     @Getter
@@ -125,10 +125,45 @@ public final class Japik implements ISettingsManagerCallback {
                     },
                     Boolean.toString(false)
             ));
+
+            liveCycleController.getInitImplQueue().putAutoPriorityOrder("init-local-protocol", () -> {
+                final LocalProtocol localProtocol = new LocalProtocol(
+                        server,
+                        new Settings()
+                );
+                networking.getProtocolCollection().add(localProtocol);
+                try{
+                    localProtocol.getLiveCycle().init();
+                } catch (Throwable throwable) {
+                    networking.getProtocolCollection().remove(localProtocol);
+                }
+                mainLogger.info("LocalProtocol initialized.");
+            });
+
+            liveCycleController.getInitImplQueue().putAutoPriorityOrder("init-local-remote", () -> {
+                final Remote localRemote = networking.getRemoteCollection().add(
+                        new Remote.Builder()
+                                .setProtocolName(LocalProtocol.name)
+                                .setRemoteName(LocalProtocol.name)
+                );
+                try {
+                    localRemote.getLiveCycle().init();
+                } catch (Throwable throwable) {
+                    networking.getRemoteCollection().remove(localRemote);
+                    throw throwable;
+                }
+                mainLogger.info("LocalRemote initialized.");
+            });
         }
 
         @Override
         public void start() throws Throwable {
+            liveCycleController.getStartImplQueue().putAutoPriorityOrder("start-local-protocol", () -> {
+                networking.getProtocolCollection().getByName(LocalProtocol.name).getLiveCycle().start();
+            });
+            liveCycleController.getStartImplQueue().putAutoPriorityOrder("start-local-remote", () -> {
+                networking.getRemoteCollection().getByName(LocalProtocol.name).getLiveCycle().start();
+            });
         }
 
         @Override
@@ -166,6 +201,13 @@ public final class Japik implements ISettingsManagerCallback {
                     mainLogger.exception(illegalStateException);
                 }
             }
+
+            liveCycleController.getStartImplQueue().putAutoPriorityOrder("stopSlow-local-remote", () -> {
+                networking.getRemoteCollection().getByName(LocalProtocol.name).getLiveCycle().stopSlow();
+            });
+            liveCycleController.getStartImplQueue().putAutoPriorityOrder("stopSlow-local-protocol", () -> {
+                networking.getProtocolCollection().getByName(LocalProtocol.name).getLiveCycle().stopSlow();
+            });
         }
 
         @Override
@@ -188,6 +230,13 @@ public final class Japik implements ISettingsManagerCallback {
                 } catch (IllegalStateException illegalStateException){
                     mainLogger.exception(illegalStateException);
                 }
+            });
+
+            liveCycleController.getStartImplQueue().putAutoPriorityOrder("stopForce-local-remote", () -> {
+                networking.getRemoteCollection().getByName(LocalProtocol.name).getLiveCycle().stopForce();
+            });
+            liveCycleController.getStartImplQueue().putAutoPriorityOrder("stopForce-local-protocol", () -> {
+                networking.getProtocolCollection().getByName(LocalProtocol.name).getLiveCycle().stopForce();
             });
         }
 
