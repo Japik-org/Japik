@@ -9,7 +9,9 @@ import com.japik.livecycle.controller.LiveCycleController;
 import com.japik.logger.ILogger;
 import com.japik.logger.LoggerManager;
 import com.japik.logger.SystemOutLogger;
+import com.japik.networking.IProtocol;
 import com.japik.networking.Networking;
+import com.japik.networking.Remote;
 import com.japik.properties.ProjectProperties;
 import com.japik.service.IService;
 import com.japik.service.ServiceLoader;
@@ -191,6 +193,18 @@ public final class Japik implements ISettingsManagerCallback {
 
         @Override
         public void destroy() {
+            for (final Remote remote : networking.getRemoteCollection()) {
+                if (remote.getLiveCycle().getStatus().isInitialized())
+                    remote.getLiveCycle().destroy();
+            }
+            networking.getRemoteCollection().clear();
+
+            for (final IProtocol protocol: networking.getProtocolCollection()) {
+                if (protocol.getLiveCycle().getStatus().isInitialized())
+                    protocol.getLiveCycle().destroy();
+            }
+            networking.getProtocolCollection().clear();
+
             settingsManager.removeAllListeners();
 
             if (serviceLoader != null) {
