@@ -30,7 +30,9 @@ public final class Japik implements ISettingsManagerCallback {
     private final Path workingPath;
 
     private final ClassLoader parentClassLoader;
-    private final LiveCycleController liveCycleController;
+
+    @Getter
+    private final LiveCycleController liveCycle;
 
     @Getter
     private final ProjectProperties projectProperties;
@@ -59,26 +61,20 @@ public final class Japik implements ISettingsManagerCallback {
         this.workingPath = workingPath;
         this.parentClassLoader = this.getClass().getClassLoader();
         final ServerLiveCycleImpl serverLiveCycle = new ServerLiveCycleImpl(this);
-        liveCycleController = new LiveCycleController.Builder()
+        liveCycle = new LiveCycleController.Builder()
                 .setDefaultImpl(serverLiveCycle)
                 .setElementName("Server")
                 .setLogger(SystemOutLogger.instance)
                 .build();
 
         mainLogger = SystemOutLogger.instance;
-        liveCycleController.setLogger(mainLogger);
+        liveCycle.setLogger(mainLogger);
 
         settings = new Settings();
         settingsManager = new SettingsManager(this, mainLogger, settings);
 
         projectProperties = new ProjectProperties();
         projectProperties.load(ClassLoader.getSystemClassLoader().getResourceAsStream("project.properties"));
-    }
-
-    // ------- live cycle
-
-    public ILiveCycle getLiveCycle(){
-        return liveCycleController;
     }
 
     private final class ServerLiveCycleImpl implements ILiveCycleImpl {
@@ -91,7 +87,7 @@ public final class Japik implements ISettingsManagerCallback {
         @Override
         public void init() throws Throwable {
             mainLogger = loggerManager.getMainLogger();
-            liveCycleController.setLogger(mainLogger);
+            liveCycle.setLogger(mainLogger);
 
             mainLogger.info("Server version is " + projectProperties.getVersion());
 
@@ -120,13 +116,13 @@ public final class Japik implements ISettingsManagerCallback {
                     new BooleanSettingListener() {
                         @Override
                         public void apply2(String key, Boolean val, SettingListenerEventMask eventMask) {
-                            liveCycleController.setEnabledAutoFixBroken(val);
+                            liveCycle.setEnabledAutoFixBroken(val);
                         }
                     },
                     Boolean.toString(false)
             ));
 
-            liveCycleController.getInitImplQueue().putAutoPriorityOrder("init-local-protocol", () -> {
+            liveCycle.getInitImplQueue().putAutoPriorityOrder("init-local-protocol", () -> {
                 final LocalProtocol localProtocol = new LocalProtocol(
                         server,
                         new Settings()
@@ -140,7 +136,7 @@ public final class Japik implements ISettingsManagerCallback {
                 mainLogger.info("LocalProtocol initialized.");
             });
 
-            liveCycleController.getInitImplQueue().putAutoPriorityOrder("init-local-remote", () -> {
+            liveCycle.getInitImplQueue().putAutoPriorityOrder("init-local-remote", () -> {
                 final Remote localRemote = networking.getRemoteCollection().add(
                         new Remote.Builder()
                                 .setProtocolName(LocalProtocol.name)
@@ -158,10 +154,10 @@ public final class Japik implements ISettingsManagerCallback {
 
         @Override
         public void start() throws Throwable {
-            liveCycleController.getStartImplQueue().putAutoPriorityOrder("start-local-protocol", () -> {
+            liveCycle.getStartImplQueue().putAutoPriorityOrder("start-local-protocol", () -> {
                 networking.getProtocolCollection().getByName(LocalProtocol.name).getLiveCycle().start();
             });
-            liveCycleController.getStartImplQueue().putAutoPriorityOrder("start-local-remote", () -> {
+            liveCycle.getStartImplQueue().putAutoPriorityOrder("start-local-remote", () -> {
                 networking.getRemoteCollection().getByName(LocalProtocol.name).getLiveCycle().start();
             });
         }
@@ -202,10 +198,10 @@ public final class Japik implements ISettingsManagerCallback {
                 }
             }
 
-            liveCycleController.getStartImplQueue().putAutoPriorityOrder("stopSlow-local-remote", () -> {
+            liveCycle.getStartImplQueue().putAutoPriorityOrder("stopSlow-local-remote", () -> {
                 networking.getRemoteCollection().getByName(LocalProtocol.name).getLiveCycle().stopSlow();
             });
-            liveCycleController.getStartImplQueue().putAutoPriorityOrder("stopSlow-local-protocol", () -> {
+            liveCycle.getStartImplQueue().putAutoPriorityOrder("stopSlow-local-protocol", () -> {
                 networking.getProtocolCollection().getByName(LocalProtocol.name).getLiveCycle().stopSlow();
             });
         }
@@ -232,10 +228,10 @@ public final class Japik implements ISettingsManagerCallback {
                 }
             });
 
-            liveCycleController.getStartImplQueue().putAutoPriorityOrder("stopForce-local-remote", () -> {
+            liveCycle.getStartImplQueue().putAutoPriorityOrder("stopForce-local-remote", () -> {
                 networking.getRemoteCollection().getByName(LocalProtocol.name).getLiveCycle().stopForce();
             });
-            liveCycleController.getStartImplQueue().putAutoPriorityOrder("stopForce-local-protocol", () -> {
+            liveCycle.getStartImplQueue().putAutoPriorityOrder("stopForce-local-protocol", () -> {
                 networking.getProtocolCollection().getByName(LocalProtocol.name).getLiveCycle().stopForce();
             });
         }
@@ -267,7 +263,7 @@ public final class Japik implements ISettingsManagerCallback {
             extensionLoader = null;
 
             mainLogger = SystemOutLogger.instance;
-            liveCycleController.setLogger(mainLogger);
+            liveCycle.setLogger(mainLogger);
             loggerManager.unregisterLoggers();
 
             if (dependencyLord != null) {
