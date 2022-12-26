@@ -2,6 +2,7 @@ package com.japik.networking;
 
 import com.japik.service.IServiceConnection;
 import com.japik.service.IServiceConnectionSafe;
+import com.japik.service.ServiceNotFoundException;
 import lombok.Getter;
 
 import java.rmi.RemoteException;
@@ -24,11 +25,11 @@ public abstract class AProtocolInstance implements IProtocolInstance {
     protected abstract boolean existsServiceImpl(String serviceName) throws RemoteException;
 
     @Override
-    public synchronized final IServiceConnection getServiceConnection(String serviceName) throws RemoteException {
+    public synchronized final <SC extends IServiceConnection> SC getServiceConnection(String serviceName) throws RemoteException, ServiceNotFoundException {
         throwIfClosed();
         return getServiceConnectionImpl(serviceName);
     }
-    protected abstract IServiceConnection getServiceConnectionImpl(String serviceName) throws RemoteException;
+    protected abstract <SC extends IServiceConnection> SC getServiceConnectionImpl(String serviceName) throws RemoteException, ServiceNotFoundException;
 
     @Override
     public synchronized final <SC extends IServiceConnection> IServiceConnectionSafe<SC> createServiceConnectionSafe(String serviceName) {
