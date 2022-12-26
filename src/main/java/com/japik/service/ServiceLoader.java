@@ -87,6 +87,14 @@ public final class ServiceLoader extends AElementLoader<IService<?>> {
         return element;
     }
 
+    public <SC extends IServiceConnection> IService<SC> getServiceOrThrow(String serviceName) throws ServiceNotFoundException {
+        final IService<SC> element = (IService<SC>) nameElementMap.get(serviceName);
+        if (element == null) {
+            throw new ServiceNotFoundException(serviceName);
+        }
+        return element;
+    }
+
     private final class ServiceCallback implements IServiceCallback{
         private final String serviceName;
         private final Tenant serviceTenant;

@@ -74,4 +74,12 @@ public final class ExtensionLoader extends AElementLoader<IExtension<?>> {
         return element;
     }
 
+    public IExtension getExtensionOrThrow(String extensionName) throws ExtensionNotFoundException {
+        final IExtension element = nameElementMap.get(extensionName);
+        if (element == null) {
+            throw new ExtensionNotFoundException(extensionName);
+        }
+        return element;
+    }
+
 }

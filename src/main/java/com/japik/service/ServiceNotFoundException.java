@@ -7,7 +7,11 @@ import lombok.Getter;
 @Getter
 public final class ServiceNotFoundException extends ElementNotFoundException {
 
-    public ServiceNotFoundException(ElementType elementType, String elementSubtype, String elementName) {
-        super(elementType, elementSubtype, elementName);
+    public ServiceNotFoundException(String elementSubtype, String elementName) {
+        super(ElementType.Service, elementSubtype, elementName);
+    }
+
+    public ServiceNotFoundException(String elementName) {
+        super(ElementType.Service, elementName);
     }
 }
