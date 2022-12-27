@@ -6,7 +6,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.japik</groupId>
-    <artifactId>Japik</artifactId>
+    <artifactId>japik</artifactId>
     <version>0.6.1</version>
     <packaging>jar</packaging>
 
