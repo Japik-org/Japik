@@ -7,14 +7,27 @@ import org.eclipse.collections.impl.tuple.Tuples;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class ImplMap<T> {
     private final HashMap<ILiveCycleImplId, Pair<ILiveCycleImplId, T>> map =
             new HashMap<>(8);
 
+    private final AtomicInteger automaticPriority = new AtomicInteger(0);
+
     public void put(ILiveCycleImplId id, T impl) {
         final Pair<ILiveCycleImplId, T> pair = Tuples.pair(id, impl);
         map.put(id, pair);
+    }
+
+    public void put(String idName, int priority, T impl) {
+        final ILiveCycleImplId id = new LiveCycleImplId(idName, priority);
+        put(id, impl);
+    }
+
+    public void putAutoPriorityOrder(String idName, T impl) {
+        final ILiveCycleImplId id = new LiveCycleImplId(idName, automaticPriority.incrementAndGet());
+        put(id, impl);
     }
 
     public Pair<ILiveCycleImplId, T> find(String idName) {

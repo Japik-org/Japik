@@ -148,6 +148,18 @@ public final class LiveCycleController implements ILiveCycle {
         putImplAll(id, liveCycleImpl);
     }
 
+    public void putAutoPriorityOrder(String idName, ILiveCycleImpl liveCycleImpl) {
+        Objects.requireNonNull(liveCycleImpl);
+
+        initImplQueue.putAutoPriorityOrder(idName, liveCycleImpl);
+        startImplQueue.putAutoPriorityOrder(idName, liveCycleImpl);
+        stopSlowImplQueue.putAutoPriorityOrder(idName, liveCycleImpl);
+        stopForceImplQueue.putAutoPriorityOrder(idName, liveCycleImpl);
+        destroyImplQueue.putAutoPriorityOrder(idName, liveCycleImpl);
+        canBeStoppedSafeImplMap.putAutoPriorityOrder(idName, liveCycleImpl);
+        announceStopImplMap.putAutoPriorityOrder(idName, liveCycleImpl);
+    }
+
     public void clearImplQueue() {
         initImplQueue.clear();
         startImplQueue.clear();
