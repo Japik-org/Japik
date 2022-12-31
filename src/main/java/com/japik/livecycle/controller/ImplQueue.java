@@ -28,7 +28,7 @@ public final class ImplQueue<T> {
         put(id, impl);
     }
 
-    public void putAutoPriorityOrder(String idName, T impl) {
+    public void putPriorityOrder(String idName, T impl) {
         final ILiveCycleImplId id = new LiveCycleImplId(idName, automaticPriority.incrementAndGet());
         put(id, impl);
     }

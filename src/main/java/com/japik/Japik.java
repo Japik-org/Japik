@@ -3,7 +3,6 @@ package com.japik;
 import com.japik.dep.DependencyLord;
 import com.japik.extension.ExtensionLoader;
 import com.japik.extension.IExtension;
-import com.japik.livecycle.ILiveCycle;
 import com.japik.livecycle.ILiveCycleImpl;
 import com.japik.livecycle.controller.LiveCycleController;
 import com.japik.logger.ILogger;
@@ -122,7 +121,7 @@ public final class Japik implements ISettingsManagerCallback {
                     Boolean.toString(false)
             ));
 
-            liveCycle.getInitImplQueue().putAutoPriorityOrder("init-local-protocol", () -> {
+            liveCycle.getInitImplQueue().putPriorityOrder("init-local-protocol", () -> {
                 final LocalProtocol localProtocol = new LocalProtocol(
                         server,
                         new Settings()
@@ -136,7 +135,7 @@ public final class Japik implements ISettingsManagerCallback {
                 mainLogger.info("LocalProtocol initialized.");
             });
 
-            liveCycle.getInitImplQueue().putAutoPriorityOrder("init-local-remote", () -> {
+            liveCycle.getInitImplQueue().putPriorityOrder("init-local-remote", () -> {
                 final Remote localRemote = networking.getRemoteCollection().add(
                         new Remote.Builder()
                                 .setProtocolName(LocalProtocol.name)
@@ -154,10 +153,10 @@ public final class Japik implements ISettingsManagerCallback {
 
         @Override
         public void start() throws Throwable {
-            liveCycle.getStartImplQueue().putAutoPriorityOrder("start-local-protocol", () -> {
+            liveCycle.getStartImplQueue().putPriorityOrder("start-local-protocol", () -> {
                 networking.getProtocolCollection().getByName(LocalProtocol.name).getLiveCycle().start();
             });
-            liveCycle.getStartImplQueue().putAutoPriorityOrder("start-local-remote", () -> {
+            liveCycle.getStartImplQueue().putPriorityOrder("start-local-remote", () -> {
                 networking.getRemoteCollection().getByName(LocalProtocol.name).getLiveCycle().start();
             });
         }
@@ -198,10 +197,10 @@ public final class Japik implements ISettingsManagerCallback {
                 }
             }
 
-            liveCycle.getStartImplQueue().putAutoPriorityOrder("stopSlow-local-remote", () -> {
+            liveCycle.getStartImplQueue().putPriorityOrder("stopSlow-local-remote", () -> {
                 networking.getRemoteCollection().getByName(LocalProtocol.name).getLiveCycle().stopSlow();
             });
-            liveCycle.getStartImplQueue().putAutoPriorityOrder("stopSlow-local-protocol", () -> {
+            liveCycle.getStartImplQueue().putPriorityOrder("stopSlow-local-protocol", () -> {
                 networking.getProtocolCollection().getByName(LocalProtocol.name).getLiveCycle().stopSlow();
             });
         }
@@ -228,10 +227,10 @@ public final class Japik implements ISettingsManagerCallback {
                 }
             });
 
-            liveCycle.getStartImplQueue().putAutoPriorityOrder("stopForce-local-remote", () -> {
+            liveCycle.getStartImplQueue().putPriorityOrder("stopForce-local-remote", () -> {
                 networking.getRemoteCollection().getByName(LocalProtocol.name).getLiveCycle().stopForce();
             });
-            liveCycle.getStartImplQueue().putAutoPriorityOrder("stopForce-local-protocol", () -> {
+            liveCycle.getStartImplQueue().putPriorityOrder("stopForce-local-protocol", () -> {
                 networking.getProtocolCollection().getByName(LocalProtocol.name).getLiveCycle().stopForce();
             });
         }
