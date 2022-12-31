@@ -14,7 +14,7 @@ public abstract class AProtocolInstance implements IProtocolInstance {
     private boolean isClosed = false;
 
     public AProtocolInstance(String protocolName) {
-        this.protocolName = protocolName;
+        this.protocolName = protocolName.toLowerCase();
     }
 
     @Override

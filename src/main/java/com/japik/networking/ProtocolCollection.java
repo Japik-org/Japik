@@ -14,14 +14,14 @@ public final class ProtocolCollection extends AbstractCollection<IProtocol> {
 
     public boolean containsByName(String protocolName) {
         synchronized (locker) {
-            return protocolMap.containsKey(protocolName);
+            return protocolMap.containsKey(protocolName != null ? protocolName.toLowerCase() : null);
         }
     }
 
     @Nullable
     public IProtocol getByName(String protocolName){
         synchronized (locker) {
-            return protocolMap.get(protocolName);
+            return protocolMap.get(protocolName != null ? protocolName.toLowerCase() : null);
         }
     }
 
@@ -39,7 +39,7 @@ public final class ProtocolCollection extends AbstractCollection<IProtocol> {
     @Nullable
     public IProtocol removeByName(String protocolName) {
         synchronized (locker) {
-            return protocolMap.remove(protocolName);
+            return protocolMap.remove(protocolName != null ? protocolName.toLowerCase() : null);
         }
     }
 

@@ -21,7 +21,7 @@ public abstract class AProtocol implements IProtocol, ISettingsManagerCallback {
     protected final LiveCycleController liveCycle;
 
     public AProtocol(String name, Japik server, Settings settings) {
-        this.name = name;
+        this.name = name.toLowerCase();
         this.server = server;
         this.logger = server.getLoggerManager().getOrCreateLogger(name+"Protocol");
         this.settings = settings;
