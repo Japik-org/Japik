@@ -2,14 +2,14 @@
 
 (still in developing, but working)
 
-Control multiple microservices loaded into the same jvm. Load new elements and unload others in real-time without stopping your microservices. Also provides efficient communication between them.
+Control multiple microservices loaded into the same or defferent jvm. Load new elements and unload others in real-time without stopping your microservices. Also provides efficient communication between them.
 Combine elements and their settings like a lego constructor and gain your unique solution!
 
-This framework currently does not provide socket communications or any useful processing itself out of box. Use services, modules and extensions to add required implementation.
+This framework does not provide socket communications by it self. Use services, modules and extensions to add required implementation. For example, use RMIProtocolExtension to enable RMI support for communication between services, or implement your custom protocol.
 
 Missing/planned:
 1. Upload to maven central
-2. Add support of RMI and RPC for services out of box (to core)
+2. Refactoring Logger
 3. Possibility to migrate services from one jvm to another automatically, easily and safe
 4. Develop more elements (services, modules and extensions) and so gain an easy and flexible tools for:
    1. Create microservices
@@ -29,7 +29,7 @@ How to create a service impl
 ---
 A service implementation contain the main business logic. This side (Impl) of the element will be loaded first (resolved last).
 
-__x-service-impl-1.0.jar__ (or __x-service-impl.jar__, or just __x-service.jar__) in dir ./core/services/
+__x-service-impl-1.0.jar__ (or __x-service-impl.jar__, or just __x-service.jar__) in dir ./services/
 
 • Type: Service
 • Subtype: X
@@ -52,7 +52,7 @@ Module-Shared-Subtype: A B C (connect module interfaces by Shared-Subtype)
 Module-Shared-Jar: jar jar (connect module interfaces by file name)
 Service-Shared-Subtype: A B C (connect service interfaces by Shared-Subtype)
 Service-Shared-Jar: jar jar (connect service interfaces by file name)
-Import-All-Packages: false (By default is false and will be loaded classes only from the Base-Package package)
+Import-All-Packages: false (By default is false and if is then only classes from the base package (Base-Package) will be loaded)
 
 ```
 
@@ -98,7 +98,7 @@ How to create a service shared
 ---
 This side (Shared) of the element type (Service) is a contract that describes format of Impl side and contains necessary classes and interfaces for inter-element communication.
 
-__x-service-shared-1.0.jar__ (or __x-service-shared.jar__, or just __x-service.jar__) in dir ./core/services/
+__x-service-shared-1.0.jar__ (or __x-service-shared.jar__, or just __x-service.jar__) in dir ./services/
 
 • Type: Service
 • Subtype: X
@@ -167,69 +167,58 @@ class XElement extends AElement { // for example, XService extends AService<IXSe
       liveCycleController.getInitImplQueue().put(new LiveCycleImplId(
               "init example", LiveCycleController.PRIORITY_HIGH
       ), () -> {
-         ... // your custom initialization
+         // your custom init implementation
       });
-      liveCycleController.getStartImplQueue().put(...)
-      liveCycleController.getStopForceImplQueue().put(...)
-      liveCycleController.getDestroyImplQueue().put(...)
 
-      liveCycleController.putImplAll(new XElementLiveCycleImpl1());
-      liveCycleController.putImplAll(new XElementLiveCycleImpl2());
+      liveCycleController.getStartImplQueue().put(...); // no order is important
+      liveCycleController.getStartImplQueue().putPriorityOrder(...); // preserve order #1
+      liveCycleController.getStartImplQueue().putPriorityOrder(...); // preserve order #2
+
+      liveCycleController.putPriorityOrder(new XElementLiveCycleImpl1()); // preserve order #3 (for start impl)
+      liveCycleController.putPriorityOrder(new XElementLiveCycleImpl2()); // preserve order #4 (for start impl)
    }
 
-   private class XElementLiveCycleImpl1 implements ILiveCycleImpl, ILiveCycleImplId {
-      @Getter
-      private final String name = "XElementLiveCycleImpl1";
-      @Getter
-      @Setter
-      private int priority = LiveCycleController.PRIORITY_NORMAL;
-
-      // your must implement all
-
-      @Override
-      public void init() throws Throwable {
-         // your another custom initialization
+   private class XElementLiveCycleImpl1 extends AShortLiveCycleImplId {
+      @Override public void init() throws Throwable {
+         // your custom initialization
       }
 
-      @Override
-      public void start() throws Throwable {
+      @Override public void start() throws Throwable {
+         // start your threads here
       }
 
-      @Override
-      public void stopSlow() throws Throwable {
+      // optional
+      @Override public void stopSlow() throws Throwable {
+         // try to stop your threads, finish your working processes competently
       }
 
-      @Override
-      public void stopForce() {
+      @Override public void stopForce() {
+         // force stop your threads
       }
 
-      @Override
-      public void destroy() {
+      @Override public void destroy() {
+         // release your resources
       }
 
-      @Override
-      public void announceStop() {
+      // optional
+      @Override public void announceStop() {
+         // prepare before stop
       }
 
-      @Override
-      public boolean canBeStoppedSafe() {
-         return true;
+      // optional
+      @Override public boolean canBeStoppedSafe() {
+         return true; // is ready to stop?
       }
    }
 
-   private class XElementLiveCycleImpl2 extends EmptyLiveCycleImpl implements ILiveCycleImplId {
-      @Getter
-      private final String name = "XElementLiveCycleImpl2";
-      @Getter
-      @Setter
-      private int priority = LiveCycleController.PRIORITY_LOW;
-      
-      ... // you can override all or nothing
+   private class XElementLiveCycleImpl2 extends EmptyLiveCycleImplId {
+      // name is equals your class name
+      // you can override all or nothing here
    }
 }
 ```
 
-Each live cycle implementation added to the controller will be sorted according to ```priority``` dynamically:
+Each live cycle implementation added to the controller will be sorted according to ```priority```:
 * PRIORITY_HIGHEST = min
 * PRIORITY_HIGH = -1
 * PRIORITY_NORMAL = 0
@@ -237,7 +226,9 @@ Each live cycle implementation added to the controller will be sorted according 
 * PRIORITY_LOWER = max
 * or custom integer number
 
-You can modify live cycle queue (controller) in any time. Like add more init implementations from another init implementation!
+Also it may be useful to use method putAutoPriorityOrder(...) to reserve order.
+
+Note: you add implementations durring execution of another init implementation.
 
 Name (```name```) for LiveCycleImpl are used for identify them. When any exception (Throwable) occurs, you will see that name in logs. Also, you can remove them from queue if you know names.
 Successfully finished LiveCycleImpl will be removed from the queue. When any exception occurs during live cycle operation, it will not be removed from the live cycle queue. So you can change something and then try execute the same live cycle operation (init/start/stop/...) to successfully finish it.
