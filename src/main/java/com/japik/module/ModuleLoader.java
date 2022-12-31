@@ -115,6 +115,14 @@ public final class ModuleLoader extends AElementLoader<IModule<?>> {
         return element;
     }
 
+    public <MC extends IModuleConnection> IModule<MC> getModuleOrThrow(String moduleName) throws ModuleNotFoundException {
+        final IModule<MC> element = (IModule<MC>) nameElementMap.get(moduleName);
+        if (element == null) {
+            throw new ModuleNotFoundException(moduleName, service.getName());
+        }
+        return element;
+    }
+
     @RequiredArgsConstructor
     public static final class Builder{
         private final Japik server;

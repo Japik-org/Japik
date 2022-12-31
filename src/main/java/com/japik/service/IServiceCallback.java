@@ -4,6 +4,8 @@ import com.japik.element.ElementNotFoundException;
 import com.japik.logger.ILogger;
 import com.japik.logger.LoggerAlreadyExistsException;
 
+import java.rmi.RemoteException;
+
 public interface IServiceCallback {
     // logger
     ILogger createLogger(String loggerSubName) throws LoggerAlreadyExistsException;
@@ -15,6 +17,6 @@ public interface IServiceCallback {
     /**
      * @throws ClassCastException
      */
-    <SC extends IServiceConnection> SC getServiceConnection(String serviceName) throws ElementNotFoundException;
+    <SC extends IServiceConnection> SC getServiceConnection(String serviceName) throws RemoteException, ServiceNotFoundException;
     <SC extends IServiceConnection> IServiceConnectionSafe<SC> createServiceConnectionSafe(String serviceName);
 }

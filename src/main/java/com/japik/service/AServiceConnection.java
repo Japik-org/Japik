@@ -4,9 +4,12 @@ import com.japik.logger.ILogger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.rmi.RemoteException;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.Objects;
 
 public abstract class AServiceConnection<S extends IService<SC>, SC extends IServiceConnection>
+        extends UnicastRemoteObject
         implements IServiceConnection{
 
     @Nullable
@@ -19,7 +22,8 @@ public abstract class AServiceConnection<S extends IService<SC>, SC extends ISer
 
     private boolean isClosed = false;
 
-    public AServiceConnection(@NotNull S service, ServiceConnectionParams params) {
+    public AServiceConnection(@NotNull S service, ServiceConnectionParams params) throws RemoteException {
+        super();
         this.service = Objects.requireNonNull(service);
         this.callback = Objects.requireNonNull(params.getCallback());
         this.id = params.getId();

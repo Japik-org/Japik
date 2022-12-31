@@ -120,10 +120,10 @@ public class UtilsInternal {
             // C:/dir/a-service-impl-vX.jar
             // C:/dir/a-service-impl-vX.Y.jar
             // regex: a-service-impl-vX.(.*)jar
-            add(elSubtype.toLowerCase()+"-"+elementType.toString().toLowerCase()+"-"+elementSide.toString().toLowerCase()+"-v"+elVersion+".(.*)jar");
+            add(elSubtype.toLowerCase()+"-"+elementType.toString().toLowerCase()+"-"+elementSide.toString().toLowerCase()+"-"+elVersion+".(.*)jar");
 
             // C:/dir/a-service-vX.jar
-            add(elSubtype.toLowerCase()+"-"+elementType.toString().toLowerCase()+"-v"+elVersion+".(.*)jar");
+            add(elSubtype.toLowerCase()+"-"+elementType.toString().toLowerCase()+"-"+elVersion+".(.*)jar");
 
             // C:/dir/a-service-impl.jar
             add(elSubtype.toLowerCase()+"-"+elementType.toString().toLowerCase()+"-"+elementSide.toString().toLowerCase()+".jar");

@@ -226,8 +226,8 @@ public final class LoggerManager {
     public void unregisterLoggers(){
         lock.lock();
         try {
-            for (final String loggerName : getLoggerNames()) {
-                unregisterLogger(loggerName);
+            while (!loggerMap.isEmpty()) {
+                unregisterLogger(loggerMap.keySet().stream().findAny().get());
             }
         } finally {
             lock.unlock();

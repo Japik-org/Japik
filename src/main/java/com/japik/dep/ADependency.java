@@ -182,7 +182,6 @@ public abstract class ADependency implements IDependency{
 
     protected void releaseResources() {
         if (dependencyList != null) {
-            dependencyList.clear();
             dependencyList = null;
         }
         tenantList.clear();

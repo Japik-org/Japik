@@ -17,6 +17,7 @@ import lombok.Setter;
 import org.eclipse.collections.impl.map.mutable.primitive.IntObjectHashMap;
 import org.jetbrains.annotations.Nullable;
 
+import java.rmi.RemoteException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class AService <SC extends IServiceConnection> extends AElement
@@ -68,7 +69,7 @@ public abstract class AService <SC extends IServiceConnection> extends AElement
     }
 
     @Override
-    public final SC getServiceConnection(){
+    public final SC getServiceConnection() throws RemoteException {
         if (getLiveCycle().getStatus().isNotInitialized()){
             throw new IllegalStateException("Service is not initialized");
         }
@@ -87,7 +88,7 @@ public abstract class AService <SC extends IServiceConnection> extends AElement
         liveCycleController.putImplAll(new LowerServiceLiveCycleImpl());
     }
 
-    private SC createServiceConnectionImpl(){
+    private SC createServiceConnectionImpl() throws RemoteException {
         if (serviceConnectionMap.size() >= serviceConnectionMultipleMaxCount){
             throw new IllegalStateException("No more space for connections");
         }
@@ -101,7 +102,7 @@ public abstract class AService <SC extends IServiceConnection> extends AElement
         return sc;
     }
 
-    protected abstract SC createServiceConnection(ServiceConnectionParams params);
+    protected abstract SC createServiceConnection(ServiceConnectionParams params) throws RemoteException;
 
     private final class OnCloseServiceConnection implements IServiceConnectionCallback {
         @Override
