@@ -1,5 +1,12 @@
 package com.japik.extension;
 
-public interface IExtensionConnection {
+import com.japik.livecycle.LiveCycleStatus;
+
+import java.io.Closeable;
+
+public interface IExtensionConnection extends Closeable {
     String getExtensionType();
+    LiveCycleStatus getExtensionStatus();
+    void close();
+    boolean isClosed();
 }

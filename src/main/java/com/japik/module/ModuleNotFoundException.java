@@ -8,8 +8,13 @@ import lombok.Getter;
 public final class ModuleNotFoundException extends ElementNotFoundException {
     private final String serviceName;
 
-    public ModuleNotFoundException(ElementType elementType, String elementSubtype, String elementName, String serviceName) {
-        super(elementType, elementSubtype, elementName);
+    public ModuleNotFoundException(String elementSubtype, String elementName, String serviceName) {
+        super(ElementType.Module, elementSubtype, elementName);
+        this.serviceName = serviceName;
+    }
+
+    public ModuleNotFoundException(String elementName, String serviceName) {
+        super(ElementType.Module, elementName);
         this.serviceName = serviceName;
     }
 

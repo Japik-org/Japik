@@ -17,16 +17,18 @@ import lombok.Setter;
 import org.eclipse.collections.impl.map.mutable.primitive.IntObjectHashMap;
 import org.jetbrains.annotations.Nullable;
 
+import java.rmi.RemoteException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class AService <SC extends IServiceConnection> extends AElement
-        implements IService<SC>,
-        ISettingsManagerCallback, IServiceConnectionCallback {
+        implements IService<SC>, ISettingsManagerCallback {
 
     protected final IServiceCallback serviceCallback;
     protected final ModuleLoader moduleLoader;
 
     protected final BaseServiceSettings baseSettings;
+
+    private final OnCloseServiceConnection onCloseServiceConnection = new OnCloseServiceConnection();
 
     private boolean serviceConnectionMultipleEnabled;
     private int serviceConnectionMultipleMaxCount;
@@ -67,7 +69,7 @@ public abstract class AService <SC extends IServiceConnection> extends AElement
     }
 
     @Override
-    public final SC getServiceConnection(){
+    public final SC getServiceConnection() throws RemoteException {
         if (getLiveCycle().getStatus().isNotInitialized()){
             throw new IllegalStateException("Service is not initialized");
         }
@@ -86,7 +88,7 @@ public abstract class AService <SC extends IServiceConnection> extends AElement
         liveCycleController.putImplAll(new LowerServiceLiveCycleImpl());
     }
 
-    private SC createServiceConnectionImpl(){
+    private SC createServiceConnectionImpl() throws RemoteException {
         if (serviceConnectionMap.size() >= serviceConnectionMultipleMaxCount){
             throw new IllegalStateException("No more space for connections");
         }
@@ -94,17 +96,19 @@ public abstract class AService <SC extends IServiceConnection> extends AElement
         final SC sc = createServiceConnection(new ServiceConnectionParams(
                 scId,
                 logger,
-                this
+                onCloseServiceConnection
         ));
         serviceConnectionMap.put(scId, sc);
         return sc;
     }
 
-    protected abstract SC createServiceConnection(ServiceConnectionParams params);
+    protected abstract SC createServiceConnection(ServiceConnectionParams params) throws RemoteException;
 
-    @Override
-    public void onCloseServiceConnection(int id) {
-        serviceConnectionMap.remove(id);
+    private final class OnCloseServiceConnection implements IServiceConnectionCallback {
+        @Override
+        public void onCloseServiceConnection(int id) {
+            serviceConnectionMap.remove(id);
+        }
     }
 
     //region utils

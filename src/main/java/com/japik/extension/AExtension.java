@@ -10,17 +10,12 @@ import com.japik.service.IServiceConnection;
 import com.japik.service.IServiceConnectionSafe;
 import com.japik.service.ServiceConnectionSafeFromLoader;
 import com.japik.settings.ISettingsManagerCallback;
-import com.japik.settings.Settings;
-import com.japik.settings.SettingsManager;
 
 public abstract class AExtension <EC extends IExtensionConnection> extends AElement
         implements IExtension<EC>,
         ISettingsManagerCallback {
 
     protected final Japik server;
-
-    protected final Settings settings;
-    protected final SettingsManager settingsManager;
 
     public AExtension(ExtensionParams extensionParams) {
         super(
@@ -31,14 +26,10 @@ public abstract class AExtension <EC extends IExtensionConnection> extends AElem
                 extensionParams.getLogger()
         );
         server = extensionParams.getServer();
-
-        // settings
-        settings = new Settings();
-        settingsManager = new SettingsManager(settings, this, logger);
     }
 
     @Override
-    public abstract EC createExtensionConnection();
+    public abstract EC createExtensionConnection(ExtensionConnectionParams params);
 
     //region utils
 

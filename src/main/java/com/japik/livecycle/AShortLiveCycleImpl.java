@@ -4,7 +4,7 @@ public abstract class AShortLiveCycleImpl implements ILiveCycleImpl {
     private static final NotImplementedLiveCycleOperation notImplementedException = new NotImplementedLiveCycleOperation();
 
     @Override
-    public void stopSlow() throws NotImplementedLiveCycleOperation {
+    public void stopSlow() throws Throwable {
         throw notImplementedException;
     }
 

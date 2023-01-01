@@ -3,12 +3,15 @@ package com.japik;
 import com.japik.dep.DependencyLord;
 import com.japik.extension.ExtensionLoader;
 import com.japik.extension.IExtension;
-import com.japik.livecycle.ILiveCycle;
 import com.japik.livecycle.ILiveCycleImpl;
 import com.japik.livecycle.controller.LiveCycleController;
 import com.japik.logger.ILogger;
 import com.japik.logger.LoggerManager;
 import com.japik.logger.SystemOutLogger;
+import com.japik.networking.IProtocol;
+import com.japik.networking.LocalProtocol;
+import com.japik.networking.Networking;
+import com.japik.networking.Remote;
 import com.japik.properties.ProjectProperties;
 import com.japik.service.IService;
 import com.japik.service.ServiceLoader;
@@ -20,14 +23,15 @@ import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 public final class Japik implements ISettingsManagerCallback {
     @Getter
     private final Path workingPath;
 
     private final ClassLoader parentClassLoader;
-    private final LiveCycleController liveCycleController;
+
+    @Getter
+    private final LiveCycleController liveCycle;
 
     @Getter
     private final ProjectProperties projectProperties;
@@ -48,31 +52,28 @@ public final class Japik implements ISettingsManagerCallback {
     @Nullable
     private URLClassLoader serverClassLoader;
 
+    @Getter
+    private final Networking networking = new Networking(this);
+
 
     public Japik(Path workingPath) throws IOException {
         this.workingPath = workingPath;
         this.parentClassLoader = this.getClass().getClassLoader();
         final ServerLiveCycleImpl serverLiveCycle = new ServerLiveCycleImpl(this);
-        liveCycleController = new LiveCycleController.Builder()
+        liveCycle = new LiveCycleController.Builder()
                 .setDefaultImpl(serverLiveCycle)
                 .setElementName("Server")
                 .setLogger(SystemOutLogger.instance)
                 .build();
 
         mainLogger = SystemOutLogger.instance;
-        liveCycleController.setLogger(mainLogger);
+        liveCycle.setLogger(mainLogger);
 
         settings = new Settings();
-        settingsManager = new SettingsManager(settings, this, mainLogger);
+        settingsManager = new SettingsManager(this, mainLogger, settings);
 
         projectProperties = new ProjectProperties();
         projectProperties.load(ClassLoader.getSystemClassLoader().getResourceAsStream("project.properties"));
-    }
-
-    // ------- live cycle
-
-    public ILiveCycle getLiveCycle(){
-        return liveCycleController;
     }
 
     private final class ServerLiveCycleImpl implements ILiveCycleImpl {
@@ -85,15 +86,13 @@ public final class Japik implements ISettingsManagerCallback {
         @Override
         public void init() throws Throwable {
             mainLogger = loggerManager.getMainLogger();
-            liveCycleController.setLogger(mainLogger);
+            liveCycle.setLogger(mainLogger);
 
             mainLogger.info("Server version is " + projectProperties.getVersion());
 
             serverClassLoader = new URLClassLoader(new URL[0], parentClassLoader);
 
-            dependencyLord = new DependencyLord(
-                    Paths.get(server.getWorkingPath().toString(), "core")
-            );
+            dependencyLord = new DependencyLord(server.workingPath);
 
             serviceLoader = new ServiceLoader(
                     server,
@@ -116,15 +115,50 @@ public final class Japik implements ISettingsManagerCallback {
                     new BooleanSettingListener() {
                         @Override
                         public void apply2(String key, Boolean val, SettingListenerEventMask eventMask) {
-                            liveCycleController.setEnabledAutoFixBroken(val);
+                            liveCycle.setEnabledAutoFixBroken(val);
                         }
                     },
                     Boolean.toString(false)
             ));
+
+            liveCycle.getInitImplQueue().putPriorityOrder("init-local-protocol", () -> {
+                final LocalProtocol localProtocol = new LocalProtocol(
+                        server,
+                        new Settings()
+                );
+                networking.getProtocolCollection().add(localProtocol);
+                try{
+                    localProtocol.getLiveCycle().init();
+                } catch (Throwable throwable) {
+                    networking.getProtocolCollection().remove(localProtocol);
+                }
+                mainLogger.info("LocalProtocol initialized.");
+            });
+
+            liveCycle.getInitImplQueue().putPriorityOrder("init-local-remote", () -> {
+                final Remote localRemote = networking.getRemoteCollection().add(
+                        new Remote.Builder()
+                                .setProtocolName(LocalProtocol.name)
+                                .setRemoteName(LocalProtocol.name)
+                );
+                try {
+                    localRemote.getLiveCycle().init();
+                } catch (Throwable throwable) {
+                    networking.getRemoteCollection().remove(localRemote);
+                    throw throwable;
+                }
+                mainLogger.info("LocalRemote initialized.");
+            });
         }
 
         @Override
         public void start() throws Throwable {
+            liveCycle.getStartImplQueue().putPriorityOrder("start-local-protocol", () -> {
+                networking.getProtocolCollection().getByName(LocalProtocol.name).getLiveCycle().start();
+            });
+            liveCycle.getStartImplQueue().putPriorityOrder("start-local-remote", () -> {
+                networking.getRemoteCollection().getByName(LocalProtocol.name).getLiveCycle().start();
+            });
         }
 
         @Override
@@ -162,6 +196,13 @@ public final class Japik implements ISettingsManagerCallback {
                     mainLogger.exception(illegalStateException);
                 }
             }
+
+            liveCycle.getStartImplQueue().putPriorityOrder("stopSlow-local-remote", () -> {
+                networking.getRemoteCollection().getByName(LocalProtocol.name).getLiveCycle().stopSlow();
+            });
+            liveCycle.getStartImplQueue().putPriorityOrder("stopSlow-local-protocol", () -> {
+                networking.getProtocolCollection().getByName(LocalProtocol.name).getLiveCycle().stopSlow();
+            });
         }
 
         @Override
@@ -185,10 +226,29 @@ public final class Japik implements ISettingsManagerCallback {
                     mainLogger.exception(illegalStateException);
                 }
             });
+
+            liveCycle.getStartImplQueue().putPriorityOrder("stopForce-local-remote", () -> {
+                networking.getRemoteCollection().getByName(LocalProtocol.name).getLiveCycle().stopForce();
+            });
+            liveCycle.getStartImplQueue().putPriorityOrder("stopForce-local-protocol", () -> {
+                networking.getProtocolCollection().getByName(LocalProtocol.name).getLiveCycle().stopForce();
+            });
         }
 
         @Override
         public void destroy() {
+            for (final Remote remote : networking.getRemoteCollection()) {
+                if (remote.getLiveCycle().getStatus().isInitialized())
+                    remote.getLiveCycle().destroy();
+            }
+            networking.getRemoteCollection().clear();
+
+            for (final IProtocol protocol: networking.getProtocolCollection()) {
+                if (protocol.getLiveCycle().getStatus().isInitialized())
+                    protocol.getLiveCycle().destroy();
+            }
+            networking.getProtocolCollection().clear();
+
             settingsManager.removeAllListeners();
 
             if (serviceLoader != null) {
@@ -202,7 +262,7 @@ public final class Japik implements ISettingsManagerCallback {
             extensionLoader = null;
 
             mainLogger = SystemOutLogger.instance;
-            liveCycleController.setLogger(mainLogger);
+            liveCycle.setLogger(mainLogger);
             loggerManager.unregisterLoggers();
 
             if (dependencyLord != null) {

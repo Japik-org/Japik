@@ -14,7 +14,7 @@ public class Settings {
     private final ReentrantLock locker = new ReentrantLock();
     protected boolean changed = true;
 
-    public Settings(int initialCapacity, @Nullable ISettingsCallback callback) {
+    public Settings(@Nullable ISettingsCallback callback, int initialCapacity) {
         map = new HashMap<>(initialCapacity);
         this.callback = callback;
     }
@@ -26,14 +26,6 @@ public class Settings {
 
     public Settings() {
         map = new HashMap<>();
-    }
-
-    public void apply() throws SettingsApplyIncompleteException {
-        callback.apply();
-    }
-
-    public boolean applyIfChanged() throws SettingsApplyIncompleteException {
-        return callback.applyIfChanged();
     }
 
     public String put(String key, String value) throws SettingsApplyIncompleteException {
@@ -52,7 +44,7 @@ public class Settings {
             changed = true;
             try {
                 callback.onValueChanged(key, value);
-            } catch (IllegalStateException ignored){
+            } catch (IllegalStateException | NullPointerException ignored){
             }
 
         } finally {

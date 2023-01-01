@@ -132,12 +132,22 @@ public final class LoggerManager {
     // logger
 
     public boolean existsLogger(String loggerName) {
-        return loggerMap.containsKey(loggerName);
+        lock.lock();
+        try {
+            return loggerMap.containsKey(loggerName);
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Nullable
     public ILogger getLogger(String loggerName){
-        return loggerMap.get(loggerName);
+        lock.lock();
+        try {
+            return loggerMap.get(loggerName);
+        } finally {
+            lock.unlock();
+        }
     }
 
     public ILogger createLogger(String loggerName) throws LoggerAlreadyExistsException {
@@ -155,6 +165,23 @@ public final class LoggerManager {
             registerLogger(logger);
             return logger;
 
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public ILogger getOrCreateLogger(String loggerName) {
+        lock.lock();
+        try {
+            final ILogger logger = getLogger(loggerName);
+            if (logger == null) {
+                try {
+                    return createLogger(loggerName);
+                } catch (LoggerAlreadyExistsException loggerAlreadyExistsException) {
+                    throw new RuntimeException(loggerAlreadyExistsException);
+                }
+            }
+            return logger;
         } finally {
             lock.unlock();
         }
@@ -199,8 +226,8 @@ public final class LoggerManager {
     public void unregisterLoggers(){
         lock.lock();
         try {
-            for (final String loggerName : getLoggerNames()) {
-                unregisterLogger(loggerName);
+            while (!loggerMap.isEmpty()) {
+                unregisterLogger(loggerMap.keySet().stream().findAny().get());
             }
         } finally {
             lock.unlock();

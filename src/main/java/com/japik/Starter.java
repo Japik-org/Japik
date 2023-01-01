@@ -24,8 +24,8 @@ public final class Starter {
 
         final Options options = new Options();
 
-        options.addOption(new Option("e", "ext-add-start", true, "add and start extension"));
         options.addOption(new Option("a", "ext-add", true, "add extension"));
+        options.addOption(new Option("e", "ext-start", true, "start extension"));
         options.addOption(new Option("s", "start", false, "start server"));
 
         final CommandLineParser parser = new BasicParser();
@@ -41,7 +41,7 @@ public final class Starter {
                 throw throwable;
             }
 
-            if (line.hasOption("start")){
+            if (line.hasOption(options.getOption("s"))){
                 try {
                     server.getLiveCycle().start();
                 } catch (Throwable throwable){
@@ -49,35 +49,35 @@ public final class Starter {
                 }
             }
 
-            if (line.hasOption("ext-add")){
-                final String[] extTypes = line.getOptionValues("ext-add");
-                final ExtensionLoader extensionLoader = server.getExtensionLoader();
+            {
+                final Option option = options.getOption("a");
+                if (line.hasOption(option)) {
+                    final String[] extTypes = line.getOptionValues(option);
+                    final ExtensionLoader extensionLoader = server.getExtensionLoader();
 
-                for(final String extType: extTypes){
-                    try {
-                        final IExtension<?> extension = extensionLoader.load(extType, extType, null);
-                    } catch (Throwable e) {
-                        logger.exception(e, "Failed add extension");
+                    for (final String extType : extTypes) {
+                        try {
+                            final IExtension<?> extension = extensionLoader.load(extType, extType, null);
+                        } catch (Throwable e) {
+                            logger.exception(e, "Failed add extension");
+                        }
                     }
                 }
             }
 
-            if (line.hasOption("ext-add-start")){
-                final String[] extTypes = line.getOptionValues("ext-add-start");
-                final ExtensionLoader extensionCreator = server.getExtensionLoader();
+            {
+                final Option option = options.getOption("e");
+                if (line.hasOption(option)) {
+                    final String[] extTypes = line.getOptionValues(option);
+                    final ExtensionLoader extensionLoader = server.getExtensionLoader();
 
-                for(final String extType: extTypes){
-                    final IExtension<?> extension;
-                    try {
-                        extension = extensionCreator.load(extType, extType, null);
-                    } catch (Throwable e) {
-                        logger.exception(e, "Failed add extension");
-                        continue;
-                    }
-                    try{
-                        extension.getLiveCycle().start();
-                    } catch (Throwable e){
-                        logger.exception(e, "Failed start extension");
+                    for (final String extType : extTypes) {
+                        final IExtension<?> extension = extensionLoader.get(extType);
+                        try {
+                            extension.getLiveCycle().start();
+                        } catch (Throwable e) {
+                            logger.exception(e, "Failed start extension");
+                        }
                     }
                 }
             }

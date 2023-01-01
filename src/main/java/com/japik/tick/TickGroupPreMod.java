@@ -34,6 +34,13 @@ public class TickGroupPreMod extends ATickGroup {
                            @Nullable ReentrantLock liveCycleLock) {
         super(tickGroupCallback, id, tenant, logger, liveCycleLock);
         this.baseSettings = baseSettings;
+        try {
+            settingsManager.getSettings().put(BaseSettings.KEY_SLEEP_BEFORE_TICKS, baseSettings.sleepBeforeTicks);
+            settingsManager.getSettings().put(BaseSettings.KEY_SLEEP_BETWEEN_TICKS, baseSettings.sleepBetweenTicks);
+            settingsManager.getSettings().put(BaseSettings.KEY_SLEEP_FOR_INTERRUPT, baseSettings.sleepForInterrupt);
+        } catch (SettingsApplyIncompleteException settingsApplyIncompleteException){
+            logger.warn(settingsApplyIncompleteException);
+        }
     }
 
     @Override
@@ -203,7 +210,7 @@ public class TickGroupPreMod extends ATickGroup {
 
     @RequiredArgsConstructor
     public static final class BaseSettings{
-        private static final BaseSettings DEFAULT = new BaseSettings(
+        public static final BaseSettings DEFAULT = new BaseSettings(
                 0,
                 0,
                 1500
