@@ -61,15 +61,14 @@ Import-All-Packages: false (By default is false and if is then only classes from
 package com.example.japik.services.x;
 
 public final class XService extends AService<IXServiceConnection> {
-    ... // your custom variables
+    // your custom variables
    
    // new connection will be created for establish intercommunication
-   @Override
-   public IXServiceConnection createServiceConnection(ServiceConnectionParams params) {
+   @Override public IXServiceConnection createServiceConnection(ServiceConnectionParams params) {
         return new XServiceConnection(this, params);
    }
    
-   ... // your custom service implementation below
+   // your custom service implementation below
 }
 ```
 
@@ -79,13 +78,13 @@ package com.example.japik.services.x;
 public final class XServiceConnection
         extends AServiceConnection<XService, IXServiceConnection>
         implements IXServiceConnection {
-   ... // your custom variables
+   // your custom variables
 
     public XServiceConnection(@NotNull XService service, ServiceConnectionParams params) {
         super(service, params);
     }
    
-   ... // your custom connection implementation below
+   // your custom connection implementation below
 }
 ```
 
@@ -127,7 +126,7 @@ Service-Shared-Jar: jar jar (connect service interfaces by file name)
 package com.example.japik.services.x.shared; // or com.example.server.services.x.connection
 
 public interface IXServiceConnection extends IServiceConnection {
-    ... // define your custom methods for intercommunication between services
+    // define your custom methods for intercommunication between services
 }
 ```
 
