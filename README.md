@@ -225,7 +225,7 @@ Each live cycle implementation added to the controller will be sorted according 
 * PRIORITY_LOWER = max
 * or custom integer number
 
-Also it may be useful to use method putAutoPriorityOrder(...) to reserve order.
+Also it may be useful to use method putPriorityOrder(...) to reserve order.
 
 Note: you add implementations durring execution of another init implementation.
 
