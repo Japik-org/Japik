@@ -1,11 +1,9 @@
 # Japik framework
+*(Still under development, but already functional)*
 
-(still in developing, but working)
+Easily manage multiple microservices, whether they’re running in the same or different JVMs. Load new components or remove others in real-time without interrupting your microservices. Enjoy seamless communication across services and assemble components and settings like a Lego builder to create your unique solution!
 
-Control multiple microservices loaded into the same or defferent jvm. Load new elements and unload others in real-time without stopping your microservices. Also provides efficient communication between them.
-Combine elements and their settings like a lego constructor and gain your unique solution!
-
-This framework does not provide socket communications by it self. Use services, modules and extensions to add required implementation. For example, use RMIProtocolExtension to enable RMI support for communication between services, or implement your custom protocol.
+This framework doesn’t include socket communication by default. Instead, use adaptable services, modules, and extensions for the implementations you need. For instance, use the RMIProtocolExtension to enable RMI support for communication between services, or design your own custom protocol to fit your requirements.
 
 Missing/planned:
 1. Upload to maven central
